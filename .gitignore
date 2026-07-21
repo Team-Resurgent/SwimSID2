@@ -1,0 +1,15 @@
+# Assembled firmware artifacts (rebuild with `make`)
+/build/
+*.o
+*.elf
+*.hex
+
+# Emulator harness build output (the built exes in /tools/ are committed)
+/sim/build/
+
+# SID tunes (HVSC content) and rendered WAVs - not committed
+/tunes/
+*.wav
+
+# simavr lives in third_party/simavr as a git submodule; its build output is
+# ignored by simavr's own .gitignore, so nothing to ignore here.

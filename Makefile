@@ -1,31 +1,58 @@
+# SwinSID firmware build.
+#
+# Produces the linked ELF that simavr loads (keeping the .mmcu section intact)
+# as well as the .hex. All build output goes to build/ and is named SwinSID88.*.
+#
+# This build works on native Windows (MSYS2 UCRT64) as well as Linux, because
+# avr-gcc is used to preprocess+assemble (it knows where <avr/io.h> lives, so no
+# include path needs hard-coding); linking uses avr-ld with the project linker
+# script.
+#
+# Usage (from a shell with the AVR toolchain on PATH, in this directory):
+#   make            # build the firmware (build/SwinSID88.elf + .hex)
+#   make elf        # only the ELF file (what the emulator needs)
+#   make clean
+#
+# On Windows this means an MSYS2 UCRT64 shell; see sim/README.md for setup.
 
-.PRECIOUS: %.o %.elf %.d
+AVR_CC   = avr-gcc
+AVR_LD   = avr-ld
+OBJCOPY  = avr-objcopy
+MMCU     = atmega88a
+LDSCRIPT = src/SwinSID88.ld
 
-CPPFLAGS=-traditional-cpp -I/usr/avr/sys-root/include -D__AVR_ATmega88A__ -D__ASSEMBLER__
-FIRMWARES=SwinSID88_lazy_jones_fix.hex SwinSID88_20120524.hex SwinSID88_20141027.hex
+# Only the "Lazy Jones fix" firmware is built: -DLAZY_JONES_FIX selects
+# CodeKiller's fix from the variant-guarded blocks in SwinSID88.asm.
+ASFLAGS  = -mmcu=$(MMCU) -x assembler-with-cpp -Wall -DLAZY_JONES_FIX
+LDFLAGS  = -mavr4 -T $(LDSCRIPT)
 
-all: $(FIRMWARES)
+BUILD    = build
+NAME     = SwinSID88
 
-# Dependency file is needed to make sure firmware is rebuilt when include file changes.
-%.d: %.asm
-		rm -f $@; \
-		 cpp -MM $(CPPFLAGS) $< > $@.$$$$; \
-		 sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-		 rm -f $@.$$$$
+SRC      = src/SwinSID88.asm
+DEPS     = src/SwinSID88.h
 
+OBJ = $(BUILD)/$(NAME).o
+ELF = $(BUILD)/$(NAME).elf
+HEX = $(BUILD)/$(NAME).hex
 
-%.o: %.asm %.d
-		cpp $(CPPFLAGS) $< | \
-		  avr-as -mmcu=atmega88a -o $@
+all: $(ELF) $(HEX)
 
-%.elf: %.o swinsid_atmega88.ld
-		avr-ld -mavr4 -T swinsid_atmega88.ld -o $@ $<
+elf: $(ELF)
 
-%.hex: %.elf
-		avr-objcopy -j .text -j .wavetable -j .data  -O ihex $< $@
-		if [ -f $(basename $<).compare ]; then diff -q $(basename $<).compare $@ ; fi || ( rm $@ ; exit 1 )
+$(BUILD):
+	mkdir -p $(BUILD)
+
+$(OBJ): $(SRC) $(DEPS) | $(BUILD)
+	$(AVR_CC) $(ASFLAGS) -c $(SRC) -o $@
+
+$(ELF): $(OBJ) $(LDSCRIPT)
+	$(AVR_LD) $(LDFLAGS) -o $@ $<
+
+$(HEX): $(ELF)
+	$(OBJCOPY) -j .text -j .wavetable -j .data -O ihex $< $@
 
 clean:
-		rm -f *.o *.elf *.hex
+	rm -rf $(BUILD)
 
-include $(FIRMWARES:.hex=.d)
+.PHONY: all elf clean

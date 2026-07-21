@@ -15,7 +15,7 @@
 
 
 #include <avr/io.h>
-#include "avr_mcu_section_asm.h"
+#include "SwinSID88.h"
 
 ; Generate .mmcu section for SimAVR
 AVR_MCU 32000000 atmega88
