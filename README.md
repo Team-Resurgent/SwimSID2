@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" alt="SwimSID2 icon" width="64" height="64">
+  <img src="assets/icon.png" alt="SwimSID2 icon" width="256" height="256">
 </p>
 
 # SwimSID2
