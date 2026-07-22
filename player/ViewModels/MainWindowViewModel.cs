@@ -43,6 +43,10 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>The C64 clock used for both firmware timing and the reference.</summary>
     [ObservableProperty] private Region _selectedRegion = Region.Pal;
 
+    /// <summary>Scale the firmware down to reSIDfp's level so current/original/reference
+    /// are loudness-matched for A/B. On by default; no effect on the reference itself.</summary>
+    [ObservableProperty] private bool _matchLevel = true;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RenderCommand))]
     [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
@@ -83,6 +87,7 @@ public partial class MainWindowViewModel : ObservableObject
         Filter = Use6581 ? FilterMode.M6581 : FilterMode.M8580,
         Engine = SelectedEngine,
         Region = SelectedRegion,
+        MatchLevel = MatchLevel,
         OutputPath = string.IsNullOrWhiteSpace(OutputPath) ? null : OutputPath.Trim(),
     };
 

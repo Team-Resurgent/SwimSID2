@@ -43,6 +43,8 @@ typedef struct {
     int      filter8580;  /* 1 = 8580 filter mode, 0 = 6581               */
     int      region;      /* 0 = PAL (default), 1 = NTSC                  */
     int      voice;       /* 0 = full mix (default); 1/2/3 = solo a voice */
+    int      match_level; /* 1 = scale firmware down to the reSIDfp line  */
+                          /* level so A/B is loudness-matched; 0 = as-is  */
 } swinsid_options;
 
 /* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, 8580, PAL). */

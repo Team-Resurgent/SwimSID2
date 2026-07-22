@@ -55,6 +55,10 @@ public sealed class RenderSettings
     /// value with a file extension is used verbatim as the output file.
     /// </summary>
     public string? OutputPath { get; set; }
+
+    /// <summary>Scale the firmware down to reSIDfp's line level so current/original/
+    /// reference are loudness-matched for A/B. No effect on the reference itself.</summary>
+    public bool MatchLevel { get; set; } = true;
 }
 
 /// <summary>Resolves the repo-relative locations the tool needs.</summary>
@@ -244,6 +248,7 @@ public sealed class SwinSidRunner
         Rate = (uint)s.Rate,
         Filter8580 = s.Filter == FilterMode.M8580 ? 1 : 0,
         Region = s.Region == Region.Ntsc ? 1 : 0,
+        MatchLevel = s.MatchLevel ? 1 : 0,   // firmware-only; no effect on reference
     };
 
     public Task<int> RenderAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)

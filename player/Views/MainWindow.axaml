@@ -72,6 +72,8 @@
                                         VerticalAlignment="Bottom">
                                 <TextBlock Text="Filter" Opacity="0.8" />
                                 <CheckBox Content="Use 6581 (default 8580)" IsChecked="{Binding Use6581}" />
+                                <CheckBox Content="Match level (A/B)" IsChecked="{Binding MatchLevel}"
+                                          ToolTip.Tip="Scale the firmware down to the reference's loudness so A/B is fair" />
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
                                 <TextBlock Text="Engine" Opacity="0.8" />

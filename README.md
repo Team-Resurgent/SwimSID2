@@ -48,6 +48,16 @@ What SwimSID2 adds on top of the reconstruction:
 
 ## What's new
 
+- **Filter loudness fix + A/B level-matching.** SwinSID mixed the filter's
+  low/band/high components in at full weight, with no insertion loss, so
+  filtered — especially resonant/swept — voices ran far louder than a real 6581
+  (e.g. *Wizard of Wor* was ~4.5× the reference and clipping). The firmware now
+  attenuates the filter output to model the 6581's insertion loss (that tune is
+  back in line, no clipping; non-filtered tunes are untouched). On top of that
+  the player/CLI can **level-match** the firmware down to reSIDfp's line level
+  (~×0.44) so current/original/reference are a fair A/B by ear, plus a
+  per-voice **solo** (`--voice N`) for comparing individual SID channels.
+
 - **PAL/NTSC pitch correction.** The original SwinSID advances its oscillators
   at a flat **1.000 MHz** (it adds `24 × freq` per sample at ~41.7 kHz), but a
   real C64 SID is clocked at **985,248 Hz (PAL)** or **1,022,727 Hz (NTSC)** — so

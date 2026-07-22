@@ -128,6 +128,8 @@ Options:
 | `--rate R`    | output sample rate (default 44100) |
 | `--6581` / `--8580` | select filter mode (6581 vs 8580 chip model; default 8580) |
 | `--pal` / `--ntsc` | C64 clock for firmware timing and the reference (default PAL; match how the firmware was built) |
+| `--voice N`   | solo a single SID channel (1-3) for A/B channel comparison; 0 = full mix. Muted voices keep their oscillators running (so hard-sync / ring-mod still drive the soloed voice) but their gate is forced off |
+| `--match-level` | scale the firmware down to reSIDfp's line level (~x0.44) so an A/B is loudness-matched; the firmware runs a fixed ~2.3x hotter otherwise. No effect on `--reference` |
 | `--play`      | stream the whole tune live to the audio device instead of writing a WAV |
 | `--reference` (`--ref`) | drive the libsidplayfp reference player instead of the SwinSID firmware |
 

@@ -17,6 +17,12 @@ Each tune can be driven through one of three engines (`--engine`):
   ground truth to compare the firmware against. This is the engine sidplayfp
   uses, so timing-sensitive tunes (e.g. Delta) play correctly.
 
+The SwinSID firmware runs a fixed ~2.3x hotter than reSIDfp's line level, so by
+default the player **level-matches** the firmware down to the reference (the
+*Match level* checkbox, on by default; `--raw-level` on the CLI to disable) so
+switching between current/original/reference is a fair A/B by ear. It only
+scales the firmware engines - the reference is left untouched.
+
 - Run it **with arguments** and it behaves as a command-line tool
   ([System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/)).
 - Run it **with no arguments** and it opens a nice [Avalonia](https://avaloniaui.net/) GUI.
@@ -90,6 +96,7 @@ swimsid render Commando -o C:\tmp\renders\      # -> C:\tmp\renders\Commando.wav
 | `--engine E` (`-e`) | engine to drive: `current`, `original`, or `reference` | current |
 | `--region R` (`-r`) | C64 clock: `Pal` or `Ntsc` (match how the firmware was built) | Pal |
 | `--out P` (`-o`) | render output: a `.wav` file, or a folder to receive `<tune><suffix>.wav` (render only) | `output/` |
+| `--raw-level` | keep the firmware's native (louder) output instead of level-matching it to the reference for A/B | off (matched) |
 
 Run `swimsid -h` (or `swimsid render -h`) for full help.
 

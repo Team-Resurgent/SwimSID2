@@ -121,8 +121,20 @@ static void emit_log(const char *fmt, ...) {
     g_log(buf, g_log_user);
 }
 
+/* Output gain (level-match): the SwinSID firmware runs a fixed ~2.3x hotter
+ * than reSIDfp's line-level convention. When level-matching is on we scale the
+ * firmware down to the reference's level (never amplifying, so no clipping) so
+ * current/original/reference are directly A/B comparable by ear. 1.0 = as-is. */
+static double g_out_gain = 1.0;
+#define SWINSID_MATCH_GAIN 0.44   /* firmware -> reference nominal level */
+
 /* One output sample (shared by both backends). */
 static inline void output_sample(int16_t v) {
+    if (g_out_gain != 1.0) {
+        double s = (double)v * g_out_gain;
+        if (s > 32767.0) s = 32767.0; else if (s < -32768.0) s = -32768.0;
+        v = (int16_t)s;
+    }
     if (g_play) {
         realtime_stream_push(g_stream, v);   /* live, paces to real time */
     } else {
@@ -311,6 +323,7 @@ static void session_begin(int play, swinsid_log_fn log, void *log_user) {
     g_sid_sink        = nullptr;
     g_sid_read_src    = nullptr;
     g_voice_solo      = 0;
+    g_out_gain        = 1.0;
 }
 
 static int open_output(int play, const char *wav_path, uint32_t rate,
@@ -458,6 +471,10 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     g_sid_read_src = fw_sid_read;   /* answer $D41B (OSC3) & co. from the firmware */
     g_voice_solo   = (opt->voice >= 1 && opt->voice <= 3) ? opt->voice : 0;
     if (g_voice_solo) emit_log("Solo: voice %d only (others muted)", g_voice_solo);
+    if (opt->match_level) {
+        g_out_gain = SWINSID_MATCH_GAIN;   /* bring firmware down to reSIDfp level */
+        emit_log("Level-match: firmware output x%.2f (matched to reference)", g_out_gain);
+    }
 
     /* Run the tune's init routine (song select in A). */
     player_init(song);
@@ -613,6 +630,7 @@ void swinsid_default_options(swinsid_options *opt) {
     opt->filter8580 = 1;
     opt->region     = 0;   /* PAL */
     opt->voice      = 0;   /* full mix */
+    opt->match_level = 0;  /* truthful output; the player opts in for A/B */
 }
 
 int swinsid_render(const char *elf_path, const char *sid_path,

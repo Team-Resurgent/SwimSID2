@@ -81,6 +81,10 @@ public static class CliRunner
         {
             Description = "Render output path: a .wav file, or a folder to receive <tune><suffix>.wav. Defaults to the output/ folder.",
         };
+        var rawLevelOption = new Option<bool>("--raw-level")
+        {
+            Description = "Keep the firmware's native (louder) output instead of level-matching it to the reference for A/B.",
+        };
 
         // --- render ---
         var renderCommand = new Command("render",
@@ -93,8 +97,9 @@ public static class CliRunner
         renderCommand.Options.Add(engineOption);
         renderCommand.Options.Add(regionOption);
         renderCommand.Options.Add(outOption);
+        renderCommand.Options.Add(rawLevelOption);
         renderCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption, play: false, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption, rawLevelOption, play: false, ct));
         root.Subcommands.Add(renderCommand);
 
         // --- play ---
@@ -106,8 +111,9 @@ public static class CliRunner
         playCommand.Options.Add(use6581Option);
         playCommand.Options.Add(engineOption);
         playCommand.Options.Add(regionOption);
+        playCommand.Options.Add(rawLevelOption);
         playCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption: null, play: true, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption: null, rawLevelOption, play: true, ct));
         root.Subcommands.Add(playCommand);
 
         return root;
@@ -123,6 +129,7 @@ public static class CliRunner
         Option<SidEngine> engineOption,
         Option<Region> regionOption,
         Option<string?>? outOption,
+        Option<bool> rawLevelOption,
         bool play,
         CancellationToken ct)
     {
@@ -144,6 +151,7 @@ public static class CliRunner
                 Filter = parseResult.GetValue(use6581Option) ? FilterMode.M6581 : FilterMode.M8580,
                 Engine = parseResult.GetValue(engineOption),
                 Region = parseResult.GetValue(regionOption),
+                MatchLevel = !parseResult.GetValue(rawLevelOption),
                 OutputPath = outOption is null ? null : parseResult.GetValue(outOption),
             };
             Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong})");

@@ -39,6 +39,7 @@ internal static class NativeMethods
         public int Filter8580;   // 1 = 8580, 0 = 6581
         public int Region;       // 0 = PAL (default), 1 = NTSC
         public int Voice;        // 0 = full mix (default); 1/2/3 = solo a voice
+        public int MatchLevel;   // 1 = level-match firmware down to reSIDfp for A/B
     }
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
