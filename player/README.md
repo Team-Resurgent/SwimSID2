@@ -4,10 +4,14 @@ A small .NET tool that drives the [`sim/`](../sim) emulator engine
 (`tools/swinsid.dll`) to list, **render**, and **play** SID tunes. It P/Invokes
 the DLL directly, so playback runs in-process and **Stop** halts it immediately.
 
-Each tune can be driven through either engine:
+Each tune can be driven through one of three engines (`--engine`):
 
-- **Firmware** (default) - the SwinSID firmware under simavr (what you're testing).
-- **Reference** (`--reference`) - [libsidplayfp](https://github.com/libsidplayfp/libsidplayfp),
+- **current** (default) - the SwinSID firmware you are working on, freshly built
+  from `src/` into `build/SwinSID88.elf`.
+- **original** - the frozen, unmodified SwinSID firmware baseline
+  (`tools/SwinSID88.original.elf`, committed). A/B this against **current** to
+  hear exactly what your firmware changes did.
+- **reference** - [libsidplayfp](https://github.com/libsidplayfp/libsidplayfp),
   a complete cycle-accurate C64 (6510/CIA/VIC + reSIDfp) - the "real machine"
   ground truth to compare the firmware against. This is the engine sidplayfp
   uses, so timing-sensitive tunes (e.g. Delta) play correctly.
@@ -16,17 +20,21 @@ Each tune can be driven through either engine:
   ([System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/)).
 - Run it **with no arguments** and it opens a nice [Avalonia](https://avaloniaui.net/) GUI.
 
-Renders are written to the repo-root `output/` folder as `output/<tune>.wav`
-(the reference engine writes `output/<tune>.ref.wav`, so both sit side by side).
+Renders are written to the repo-root `output/` folder, one suffix per engine so
+they sit side by side for comparison: `output/<tune>.wav` (current),
+`<tune>.orig.wav` (original), `<tune>.ref.wav` (reference).
 
 ## Prerequisites
 
 The player only orchestrates the engine, so first make sure the pieces it drives exist:
 
-1. Build the firmware:  `make`  →  `build/SwinSID88.elf`
+1. Build the firmware:  `make`  →  `build/SwinSID88.elf`  (the **current** engine)
 2. Build the engine:  `( cd sim && make )`  →  `tools/swinsid.dll`
    (needs `pacman -S mingw-w64-ucrt-x86_64-libsidplayfp` for the reference engine)
 3. Put `.sid` files in the repo-root `tunes/` folder.
+
+The **original** engine uses the committed `tools/SwinSID88.original.elf`
+baseline, so it works out of the box (no build needed).
 
 The prebuilt `tools/swinsid.dll` is committed, so you only need step 2 if you
 change the engine.
@@ -59,9 +67,14 @@ swimsid render Delta --song 12 --seconds 20 --rate 48000 --6581
 # Play the whole tune live through the speakers (Ctrl-C to stop)
 swimsid play Wizball
 
-# Compare against the libsidplayfp reference player
-swimsid render Commando --reference          # -> output/Commando.ref.wav
-swimsid play Commando --reference
+# Compare the current firmware against the original baseline and the reference
+swimsid render Commando --engine original    # -> output/Commando.orig.wav
+swimsid render Commando --engine reference   # -> output/Commando.ref.wav
+swimsid play Commando --engine reference
+
+# Render to a custom location (a .wav file, or a folder to drop the file in)
+swimsid render Commando --out C:\tmp\take1.wav
+swimsid render Commando -o C:\tmp\renders\      # -> C:\tmp\renders\Commando.wav
 ```
 
 `<tune>` is either a name as shown by `list` (e.g. `Commando`) or a path to a
@@ -73,7 +86,8 @@ swimsid play Commando --reference
 | `--seconds S` | render duration (ignored for `play`, which runs the whole tune) | 180 |
 | `--rate R`    | output sample rate (Hz) | 44100 |
 | `--6581`      | use 6581 filter mode | 8580 |
-| `--reference` (`--ref`) | use the libsidplayfp reference player instead of the firmware | firmware |
+| `--engine E` (`-e`) | engine to drive: `current`, `original`, or `reference` | current |
+| `--out P` (`-o`) | render output: a `.wav` file, or a folder to receive `<tune><suffix>.wav` (render only) | `output/` |
 
 Run `swimsid -h` (or `swimsid render -h`) for full help.
 
@@ -84,7 +98,9 @@ swimsid          # or: dotnet run   (from the player/ folder)
 ```
 
 Pick a tune from the list, adjust the options, then **Play** or **Render to WAV**.
-Tick **Reference: libsidplayfp** to drive the reference player instead of the firmware.
+Use the **Engine** dropdown to switch between the current firmware, the original
+baseline, and the libsidplayfp reference. Leave **Output** blank to use the
+default `output/` folder, or point it at a `.wav` file or a folder.
 **Play** streams live and starts almost immediately; **Stop** halts it at once
 (it calls `swinsid_stop()` in the DLL). The log pane shows the engine output.
 

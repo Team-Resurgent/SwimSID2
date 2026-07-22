@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="1000" viewBox="0 0 1300 1000" font-family="'Segoe UI', Arial, sans-serif">
+<rect width="1300" height="1000" fill="#0d0d14"/>
+<text x="40" y="40" fill="#e8e8f0" font-size="36" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="hanging" font-weight="bold">MOS 6582</text>
+<text x="41" y="92" fill="#9aa0aa" font-size="18" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="hanging">Sound Interface Device (SID)  ·  28-pin DIP</text>
+<rect x="545.0" y="171" width="210" height="744" rx="16" fill="#1c1c26" stroke="#3a3a4d" stroke-width="2"/>
+<circle cx="650" cy="171" r="15" fill="#0d0d14" stroke="#3a3a4d" stroke-width="2"/>
+<circle cx="569.0" cy="197" r="6" fill="#9aa0aa"/>
+<rect x="515.0" y="198.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="205" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">1</text>
+<text x="503.0" y="205" fill="#ff7ac6" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">CAP1A</text>
+<rect x="515.0" y="250.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="257" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">2</text>
+<text x="503.0" y="257" fill="#ff7ac6" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">CAP1B</text>
+<rect x="515.0" y="302.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="309" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">3</text>
+<text x="503.0" y="309" fill="#ff7ac6" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">CAP2A</text>
+<rect x="515.0" y="354.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="361" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">4</text>
+<text x="503.0" y="361" fill="#ff7ac6" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">CAP2B</text>
+<rect x="515.0" y="406.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="413" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">5</text>
+<text x="503.0" y="413" fill="#4dd2ff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">/RES</text>
+<rect x="515.0" y="458.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="465" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">6</text>
+<text x="503.0" y="465" fill="#ffb347" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">φ2 (CLK)</text>
+<rect x="515.0" y="510.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="517" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">7</text>
+<text x="503.0" y="517" fill="#4dd2ff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">R/W</text>
+<rect x="515.0" y="562.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="569" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">8</text>
+<text x="503.0" y="569" fill="#4dd2ff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">/CS</text>
+<rect x="515.0" y="614.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="621" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">9</text>
+<text x="503.0" y="621" fill="#5ef08a" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">A0</text>
+<rect x="515.0" y="666.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="673" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">10</text>
+<text x="503.0" y="673" fill="#5ef08a" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">A1</text>
+<rect x="515.0" y="718.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="725" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">11</text>
+<text x="503.0" y="725" fill="#5ef08a" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">A2</text>
+<rect x="515.0" y="770.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="777" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">12</text>
+<text x="503.0" y="777" fill="#5ef08a" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">A3</text>
+<rect x="515.0" y="822.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="829" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">13</text>
+<text x="503.0" y="829" fill="#5ef08a" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">A4</text>
+<rect x="515.0" y="874.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="557.0" y="881" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central">14</text>
+<text x="503.0" y="881" fill="#9aa0aa" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">GND (0 V)</text>
+<rect x="755.0" y="198.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="205" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">28</text>
+<text x="797.0" y="205" fill="#ff5d73" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">Vdd (+9 V)</text>
+<rect x="755.0" y="250.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="257" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">27</text>
+<text x="797.0" y="257" fill="#4defc9" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">AUDIO OUT</text>
+<rect x="755.0" y="302.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="309" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">26</text>
+<text x="797.0" y="309" fill="#4defc9" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">EXT IN</text>
+<rect x="755.0" y="354.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="361" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">25</text>
+<text x="797.0" y="361" fill="#ff5d73" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">Vcc (+5 V)</text>
+<rect x="755.0" y="406.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="413" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">24</text>
+<text x="797.0" y="413" fill="#ffd24d" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">POT X</text>
+<rect x="755.0" y="458.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="465" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">23</text>
+<text x="797.0" y="465" fill="#ffd24d" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">POT Y</text>
+<rect x="755.0" y="510.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="517" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">22</text>
+<text x="797.0" y="517" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D7</text>
+<rect x="755.0" y="562.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="569" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">21</text>
+<text x="797.0" y="569" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D6</text>
+<rect x="755.0" y="614.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="621" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">20</text>
+<text x="797.0" y="621" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D5</text>
+<rect x="755.0" y="666.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="673" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">19</text>
+<text x="797.0" y="673" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D4</text>
+<rect x="755.0" y="718.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="725" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">18</text>
+<text x="797.0" y="725" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D3</text>
+<rect x="755.0" y="770.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="777" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">17</text>
+<text x="797.0" y="777" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D2</text>
+<rect x="755.0" y="822.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="829" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">16</text>
+<text x="797.0" y="829" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D1</text>
+<rect x="755.0" y="874.0" width="30" height="14" rx="3" fill="#e2b23a"/>
+<text x="743.0" y="881" fill="#9aa0aa" font-size="14" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central">15</text>
+<text x="797.0" y="881" fill="#b98cff" font-size="18" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="start" dominant-baseline="central" font-weight="bold">D0</text>
+<rect x="40" y="150" width="300" height="400" rx="12" fill="#15151f" stroke="#2a2a3a" stroke-width="1.5"/>
+<text x="60" y="176" fill="#e8e8f0" font-size="19" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">SUPPLY &amp; TIMING</text>
+<text x="60" y="212" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Vdd (pin 28)</text>
+<text x="320" y="212" fill="#ff5d73" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">+9 V</text>
+<text x="60" y="250" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Vcc (pin 25)</text>
+<text x="320" y="250" fill="#ff5d73" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">+5 V</text>
+<text x="60" y="288" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">GND (pin 14)</text>
+<text x="320" y="288" fill="#9aa0aa" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">0 V</text>
+<text x="60" y="326" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Digital I/O</text>
+<text x="320" y="326" fill="#e8e8f0" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">5 V TTL logic</text>
+<text x="60" y="364" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Clock φ2 (pin 6)</text>
+<text x="320" y="364" fill="#e8e8f0" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">0.985 MHz PAL</text>
+<text x="320" y="402" fill="#e8e8f0" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">1.023 MHz NTSC</text>
+<text x="60" y="440" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Filter caps</text>
+<text x="320" y="440" fill="#ff7ac6" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">22 nF</text>
+<text x="60" y="478" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Process</text>
+<text x="320" y="478" fill="#e8e8f0" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">HMOS-II</text>
+<text x="60" y="516" fill="#9aa0aa" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Package</text>
+<text x="320" y="516" fill="#e8e8f0" font-size="16" font-family="Consolas, 'DejaVu Sans Mono', monospace" text-anchor="end" dominant-baseline="central" font-weight="bold">28-pin DIP</text>
+<rect x="960" y="150" width="300" height="346" rx="12" fill="#15151f" stroke="#2a2a3a" stroke-width="1.5"/>
+<text x="980" y="176" fill="#e8e8f0" font-size="19" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">LEGEND</text>
+<rect x="980" y="202" width="26" height="16" rx="4" fill="#ff7ac6"/>
+<text x="1018" y="210" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Filter capacitors</text>
+<rect x="980" y="234" width="26" height="16" rx="4" fill="#4dd2ff"/>
+<text x="1018" y="242" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Control</text>
+<rect x="980" y="266" width="26" height="16" rx="4" fill="#ffb347"/>
+<text x="1018" y="274" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Clock</text>
+<rect x="980" y="298" width="26" height="16" rx="4" fill="#5ef08a"/>
+<text x="1018" y="306" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Address bus</text>
+<rect x="980" y="330" width="26" height="16" rx="4" fill="#b98cff"/>
+<text x="1018" y="338" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Data bus</text>
+<rect x="980" y="362" width="26" height="16" rx="4" fill="#9aa0aa"/>
+<text x="1018" y="370" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Ground</text>
+<rect x="980" y="394" width="26" height="16" rx="4" fill="#ff5d73"/>
+<text x="1018" y="402" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Power</text>
+<rect x="980" y="426" width="26" height="16" rx="4" fill="#4defc9"/>
+<text x="1018" y="434" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Audio</text>
+<rect x="980" y="458" width="26" height="16" rx="4" fill="#ffd24d"/>
+<text x="1018" y="466" fill="#e8e8f0" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Pots (paddles)</text>
+<rect x="960" y="516" width="300" height="218" rx="12" fill="#15151f" stroke="#2a2a3a" stroke-width="1.5"/>
+<text x="980" y="542" fill="#e8e8f0" font-size="19" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">6582 NOTES</text>
+<text x="982" y="576" fill="#ff5d73" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">•</text>
+<text x="1002" y="576" fill="#e8e8f0" font-size="15" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Same die as the 8580</text>
+<text x="982" y="608" fill="#ff5d73" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">•</text>
+<text x="1002" y="608" fill="#e8e8f0" font-size="15" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Electrically identical to 8580</text>
+<text x="982" y="640" fill="#ff5d73" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">•</text>
+<text x="1002" y="640" fill="#e8e8f0" font-size="15" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Common in C64C boards</text>
+<text x="982" y="672" fill="#ff5d73" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">•</text>
+<text x="1002" y="672" fill="#e8e8f0" font-size="15" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">+9 V supply, 22 nF caps</text>
+<text x="982" y="704" fill="#ff5d73" font-size="16" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central" font-weight="bold">•</text>
+<text x="1002" y="704" fill="#e8e8f0" font-size="15" font-family="'Segoe UI', Arial, sans-serif" text-anchor="start" dominant-baseline="central">Emulated exactly like 8580</text>
+<text x="650.0" y="966" fill="#9aa0aa" font-size="14" font-family="'Segoe UI', Arial, sans-serif" text-anchor="middle" dominant-baseline="central">Pinout is identical across 6581 / 8580 / 6582 — supply voltage (pin 28) and filter capacitors differ.  Diagram not to scale.</text>
+</svg>

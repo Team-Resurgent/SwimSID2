@@ -31,8 +31,11 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private decimal _rate = 44100;
     [ObservableProperty] private bool _use6581;
 
-    /// <summary>Drive the libsidplayfp reference player instead of the SwinSID firmware.</summary>
-    [ObservableProperty] private bool _useReference;
+    /// <summary>Engines the user can choose between: current firmware, original baseline, reference.</summary>
+    public SidEngine[] Engines { get; } = { SidEngine.Current, SidEngine.Original, SidEngine.Reference };
+
+    /// <summary>The engine to drive.</summary>
+    [ObservableProperty] private SidEngine _selectedEngine = SidEngine.Current;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RenderCommand))]
@@ -42,6 +45,9 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _log = "";
     [ObservableProperty] private string _status = "Ready";
     [ObservableProperty] private string _outputFolder = "";
+
+    /// <summary>Optional render output override (a .wav file or a folder). Empty = default output/ folder.</summary>
+    [ObservableProperty] private string _outputPath = "";
 
     public MainWindowViewModel()
     {
@@ -53,8 +59,8 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (!File.Exists(_runner.Paths.EngineDll))
                 AppendLog($"Engine not found: {_runner.Paths.EngineDll}\nBuild it:  ( cd sim && make )");
-            if (!File.Exists(_runner.Paths.FirmwareElf))
-                AppendLog($"Firmware not built: {_runner.Paths.FirmwareElf}\nBuild it:  make");
+            if (!File.Exists(_runner.Paths.CurrentElf))
+                AppendLog($"Current firmware not built: {_runner.Paths.CurrentElf}\nBuild it:  make");
         }
         catch (Exception ex)
         {
@@ -69,7 +75,16 @@ public partial class MainWindowViewModel : ObservableObject
         Seconds = (double)Seconds,
         Rate = (int)Rate,
         Filter = Use6581 ? FilterMode.M6581 : FilterMode.M8580,
-        Engine = UseReference ? SidEngine.Reference : SidEngine.Firmware,
+        Engine = SelectedEngine,
+        OutputPath = string.IsNullOrWhiteSpace(OutputPath) ? null : OutputPath.Trim(),
+    };
+
+    private static string EngineName(SidEngine engine) => engine switch
+    {
+        SidEngine.Current => "current firmware",
+        SidEngine.Original => "original firmware",
+        SidEngine.Reference => "libsidplayfp",
+        _ => engine.ToString(),
     };
 
     // When a tune is selected, jump to its default song and expose its range.
@@ -121,7 +136,7 @@ public partial class MainWindowViewModel : ObservableObject
         var tune = SelectedTune;
         IsBusy = true;
         _cts = new CancellationTokenSource();
-        var engineName = UseReference ? "libsidplayfp" : "firmware";
+        var engineName = EngineName(SelectedEngine);
         Status = play ? $"Playing {tune.Name} ({engineName})..." : $"Rendering {tune.Name} ({engineName})...";
         AppendLog(play
             ? $"--- play: {tune.Name} (song {(int)Song}, whole tune, {(int)Rate} Hz, {(Use6581 ? "6581" : "8580")}, {engineName}) ---"
@@ -140,7 +155,8 @@ public partial class MainWindowViewModel : ObservableObject
             else if (rc != 0)
                 Status = $"Emulator exited with code {rc}";
             else
-                Status = play ? "Playback finished" : "Saved " + _runner.OutputWavPath(tune, Settings.Engine);
+                Status = play ? "Playback finished"
+                              : "Saved " + _runner.OutputWavPath(tune, Settings.Engine, Settings.OutputPath);
         }
         catch (Exception ex)
         {

@@ -11,8 +11,10 @@ public enum FilterMode
 /// <summary>Which SID engine to drive.</summary>
 public enum SidEngine
 {
-    /// <summary>The SwinSID firmware under simavr (the thing being tested).</summary>
-    Firmware,
+    /// <summary>The current SwinSID firmware under simavr (built from src/, the thing being worked on).</summary>
+    Current,
+    /// <summary>The frozen original SwinSID firmware baseline, for A/B against the current build.</summary>
+    Original,
     /// <summary>libsidplayfp - a complete, cycle-accurate C64 (the "real machine" reference).</summary>
     Reference,
 }
@@ -31,8 +33,16 @@ public sealed class RenderSettings
     public int Rate { get; set; } = 44100;
     public FilterMode Filter { get; set; } = FilterMode.M8580;
 
-    /// <summary>Firmware (default) or the libsidplayfp reference player.</summary>
-    public SidEngine Engine { get; set; } = SidEngine.Firmware;
+    /// <summary>Current firmware (default), the original firmware baseline, or the libsidplayfp reference.</summary>
+    public SidEngine Engine { get; set; } = SidEngine.Current;
+
+    /// <summary>
+    /// Optional render output override. When null/empty the default
+    /// output/&lt;tune&gt;&lt;suffix&gt;.wav is used. A value ending in a path
+    /// separator (or an existing directory) is treated as a folder; otherwise a
+    /// value with a file extension is used verbatim as the output file.
+    /// </summary>
+    public string? OutputPath { get; set; }
 }
 
 /// <summary>Resolves the repo-relative locations the tool needs.</summary>
@@ -41,9 +51,20 @@ public sealed class SwinSidPaths
     public string RepoRoot { get; }
 
     public string EngineDll => Path.Combine(RepoRoot, "tools", "swinsid.dll");
-    public string FirmwareElf => Path.Combine(RepoRoot, "build", "SwinSID88.elf");
+    /// <summary>The current firmware, freshly built from src/ into build/.</summary>
+    public string CurrentElf => Path.Combine(RepoRoot, "build", "SwinSID88.elf");
+    /// <summary>The frozen original firmware baseline, committed under tools/.</summary>
+    public string OriginalElf => Path.Combine(RepoRoot, "tools", "SwinSID88.original.elf");
     public string TunesDir => Path.Combine(RepoRoot, "tunes");
     public string OutputDir => Path.Combine(RepoRoot, "output");
+
+    /// <summary>The firmware ELF backing a given engine (null for the non-firmware reference).</summary>
+    public string? ElfFor(SidEngine engine) => engine switch
+    {
+        SidEngine.Current => CurrentElf,
+        SidEngine.Original => OriginalElf,
+        _ => null,
+    };
 
     private SwinSidPaths(string repoRoot) => RepoRoot = repoRoot;
 
@@ -151,23 +172,49 @@ public sealed class SwinSidRunner
             $"Tune '{nameOrPath}' was not found in {Paths.TunesDir}.");
     }
 
+    private static string WavSuffix(SidEngine engine) => engine switch
+    {
+        SidEngine.Original => ".orig.wav",
+        SidEngine.Reference => ".ref.wav",
+        _ => ".wav",
+    };
+
     /// <summary>
-    /// Output WAV for a tune. The reference engine writes "&lt;name&gt;.ref.wav" so
-    /// the firmware and reference renders can sit side by side for A/B comparison.
+    /// Output WAV for a tune. Each engine gets its own suffix so the current
+    /// firmware, original baseline, and reference renders can sit side by side
+    /// for A/B comparison: "&lt;name&gt;.wav", ".orig.wav", ".ref.wav".
+    ///
+    /// <paramref name="outputOverride"/> lets the caller redirect the render:
+    /// a directory (existing, or ending in a separator) receives the suffixed
+    /// file name; any other value is used verbatim as the output file path.
     /// </summary>
-    public string OutputWavPath(SidTune tune, SidEngine engine = SidEngine.Firmware) =>
-        Path.Combine(Paths.OutputDir,
-            tune.Name + (engine == SidEngine.Reference ? ".ref.wav" : ".wav"));
+    public string OutputWavPath(SidTune tune, SidEngine engine = SidEngine.Current, string? outputOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(outputOverride))
+            return Path.Combine(Paths.OutputDir, tune.Name + WavSuffix(engine));
+
+        var full = Path.GetFullPath(outputOverride);
+        bool asDirectory =
+            Directory.Exists(full) ||
+            outputOverride.EndsWith(Path.DirectorySeparatorChar) ||
+            outputOverride.EndsWith(Path.AltDirectorySeparatorChar) ||
+            !Path.HasExtension(full);
+
+        return asDirectory ? Path.Combine(full, tune.Name + WavSuffix(engine)) : full;
+    }
 
     private void EnsureReady(SidEngine engine)
     {
         if (!File.Exists(Paths.EngineDll))
             throw new FileNotFoundException(
                 $"Engine not found: {Paths.EngineDll}\nBuild it with:  ( cd sim && make )");
+
         // The reference (libsidplayfp) engine needs no firmware ELF.
-        if (engine == SidEngine.Firmware && !File.Exists(Paths.FirmwareElf))
-            throw new FileNotFoundException(
-                $"Firmware not built: {Paths.FirmwareElf}\nBuild it with:  make");
+        var elf = Paths.ElfFor(engine);
+        if (elf is not null && !File.Exists(elf))
+            throw new FileNotFoundException(engine == SidEngine.Current
+                ? $"Current firmware not built: {elf}\nBuild it with:  make"
+                : $"Original firmware baseline missing: {elf}");
     }
 
     private static NativeMethods.Options ToOptions(RenderSettings s) => new()
@@ -181,8 +228,10 @@ public sealed class SwinSidRunner
     public Task<int> RenderAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)
     {
         EnsureReady(settings.Engine);
-        Directory.CreateDirectory(Paths.OutputDir);
-        var wav = OutputWavPath(tune, settings.Engine);
+        var wav = OutputWavPath(tune, settings.Engine, settings.OutputPath);
+        var dir = Path.GetDirectoryName(wav);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
         return RunNativeAsync(settings.Engine, play: false, tune.FullPath, wav, ToOptions(settings), log, ct);
     }
 
@@ -199,7 +248,7 @@ public sealed class SwinSidRunner
     private Task<int> RunNativeAsync(SidEngine engine, bool play, string sidPath, string? wavPath,
         NativeMethods.Options options, Action<string>? log, CancellationToken ct)
     {
-        var elf = Paths.FirmwareElf;
+        var elf = Paths.ElfFor(engine) ?? "";
 
         return Task.Run(() =>
         {

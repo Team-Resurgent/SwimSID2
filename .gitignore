@@ -3,6 +3,9 @@
 *.o
 *.elf
 *.hex
+# ...but the frozen "original" firmware baseline in /tools/ IS committed, so the
+# player can A/B the current firmware against the unmodified original.
+!/tools/SwinSID88.original.elf
 
 # Emulator harness build output (the built DLL + exes in /tools/ are committed)
 /sim/build/

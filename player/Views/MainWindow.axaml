@@ -6,6 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Width="900" Height="620"
         MinWidth="720" MinHeight="500"
+        Icon="/Assets/icon.ico"
         Title="SwimSID2 Player">
 
     <Design.DataContext>
@@ -74,8 +75,11 @@
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="4" Margin="0,12,0,0">
                                 <TextBlock Text="Engine" Opacity="0.8" />
-                                <CheckBox Content="Reference: libsidplayfp accurate C64 (compare vs firmware)"
-                                          IsChecked="{Binding UseReference}" />
+                                <ComboBox ItemsSource="{Binding Engines}"
+                                          SelectedItem="{Binding SelectedEngine}"
+                                          HorizontalAlignment="Stretch" />
+                                <TextBlock Opacity="0.55" FontSize="12"
+                                           Text="Current = built firmware  ·  Original = frozen baseline  ·  Reference = libsidplayfp (real C64)" />
                             </StackPanel>
                         </Grid>
 
@@ -90,7 +94,13 @@
                                          VerticalAlignment="Center" IsVisible="{Binding IsBusy}" />
                         </StackPanel>
 
-                        <TextBlock Text="{Binding OutputFolder, StringFormat='Renders are saved to: {0}'}"
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Output (optional: a .wav file or a folder)" Opacity="0.8" />
+                            <TextBox Text="{Binding OutputPath}"
+                                     PlaceholderText="{Binding OutputFolder}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding OutputFolder, StringFormat='Renders default to: {0}'}"
                                    Opacity="0.55" FontSize="12" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </Border>

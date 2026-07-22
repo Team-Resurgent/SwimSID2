@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" alt="SwimSID2 icon" width="64" height="64">
+</p>
+
 # SwimSID2
 
 **SwimSID2** is a [Team-Resurgent](https://github.com/Team-Resurgent) project (by
@@ -31,6 +35,10 @@ What SwimSID2 adds on top of the reconstruction:
   `sidplayfp` uses - so the firmware output can be compared against a "real
   machine" ground truth. This is what makes timing-sensitive tunes (e.g. Delta)
   play correctly for comparison.
+- Three selectable engines for A/B testing: the **current** firmware (freshly
+  built from `src/`), the **original** firmware baseline (a frozen, committed
+  ELF), and the **reference** (libsidplayfp) - so you can hear exactly what a
+  firmware change did and how it stacks up against a real C64.
 
 ## Background
 
@@ -72,12 +80,17 @@ The [`sim/`](sim/) directory contains a PC emulator (built on
 [simavr](https://github.com/buserror/simavr)) that runs this firmware against
 real `.sid` tunes and renders the audio to a WAV file or plays it live. This
 enables a fast edit -> assemble -> render -> compare loop for working on the
-firmware. The same tune can also be rendered/played through the
-[libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) reference player
-(`--reference`) to compare the firmware against a real C64.
+firmware. The same tune can also be rendered/played through the frozen
+**original** firmware baseline or the
+[libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) reference player, to
+compare your current firmware against the unmodified original and a real C64.
 See [`sim/README.md`](sim/README.md).
 
 ## Player app (.NET)
+
+<p align="center">
+  <img src="docs/player.png" alt="SwimSID2 Player GUI" width="640">
+</p>
 
 The [`player/`](player/) directory contains a .NET front-end that P/Invokes the
 `swinsid.dll` engine. It lists the tunes in `tunes/` and can **render** them to
@@ -89,14 +102,42 @@ or with no arguments to open an [Avalonia](https://avaloniaui.net/) GUI:
 ```bash
 cd player
 dotnet build
-swimsid list                    # list tunes
-swimsid render Commando         # -> output/Commando.wav
-swimsid play Wizball            # play live
-swimsid render Commando --ref   # libsidplayfp reference -> output/Commando.ref.wav
-swimsid                         # no args -> GUI
+swimsid list                          # list tunes
+swimsid render Commando               # current firmware -> output/Commando.wav
+swimsid play Wizball                  # play live
+swimsid render Commando -e original   # original baseline -> output/Commando.orig.wav
+swimsid render Commando -e reference  # libsidplayfp       -> output/Commando.ref.wav
+swimsid                               # no args -> GUI
 ```
 
 See [`player/README.md`](player/README.md) for details.
+
+## Reference
+
+*Click any image to view it full size.*
+
+### SID chip pinouts
+
+The SID is a 28-pin DIP; the pinout is identical across variants - only the
+supply voltage (pin 28) and the filter capacitors differ. Full details are in
+[`docs/sid-pinouts.md`](docs/sid-pinouts.md); vector sources live in
+[`assets/`](assets).
+
+<p align="center">
+  <a href="docs/sid-6581-pinout.png"><img src="docs/sid-6581-pinout.png" alt="MOS 6581 SID pinout" width="300"></a>
+  <a href="docs/sid-8580-pinout.png"><img src="docs/sid-8580-pinout.png" alt="MOS 8580 SID pinout" width="300"></a>
+  <a href="docs/sid-6582-pinout.png"><img src="docs/sid-6582-pinout.png" alt="MOS 6582 SID pinout" width="300"></a>
+</p>
+
+### SwinSID Nano schematic
+
+The firmware targets the **SwinSID Nano** hardware (an ATmega88PA at 32 MHz in a
+C64 SID socket). Annotated notes are in
+[`docs/swinsid-nano.md`](docs/swinsid-nano.md).
+
+<p align="center">
+  <a href="docs/swinsid-nano-schematic.png"><img src="docs/swinsid-nano-schematic.png" alt="SwinSID Nano schematic" width="620"></a>
+</p>
 
 ## Credits
 

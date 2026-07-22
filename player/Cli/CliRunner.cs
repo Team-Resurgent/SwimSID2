@@ -67,21 +67,28 @@ public static class CliRunner
         {
             Description = "Use 6581 filter mode (default is 8580).",
         };
-        var referenceOption = new Option<bool>("--reference", "--ref")
+        var engineOption = new Option<SidEngine>("--engine", "-e")
         {
-            Description = "Use the libsidplayfp reference player (accurate C64 + reSIDfp) instead of the SwinSID firmware.",
+            Description = "Engine: current (built firmware), original (frozen baseline), or reference (libsidplayfp).",
+            DefaultValueFactory = _ => SidEngine.Current,
+        };
+        var outOption = new Option<string?>("--out", "-o")
+        {
+            Description = "Render output path: a .wav file, or a folder to receive <tune><suffix>.wav. Defaults to the output/ folder.",
         };
 
         // --- render ---
-        var renderCommand = new Command("render", "Render a tune to output/<tune>.wav (reference -> <tune>.ref.wav).");
+        var renderCommand = new Command("render",
+            "Render a tune to output/<tune>.wav (original -> <tune>.orig.wav, reference -> <tune>.ref.wav).");
         renderCommand.Arguments.Add(tuneArgument);
         renderCommand.Options.Add(songOption);
         renderCommand.Options.Add(secondsOption);
         renderCommand.Options.Add(rateOption);
         renderCommand.Options.Add(use6581Option);
-        renderCommand.Options.Add(referenceOption);
+        renderCommand.Options.Add(engineOption);
+        renderCommand.Options.Add(outOption);
         renderCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, referenceOption, play: false, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, outOption, play: false, ct));
         root.Subcommands.Add(renderCommand);
 
         // --- play ---
@@ -91,9 +98,9 @@ public static class CliRunner
         playCommand.Options.Add(secondsOption);
         playCommand.Options.Add(rateOption);
         playCommand.Options.Add(use6581Option);
-        playCommand.Options.Add(referenceOption);
+        playCommand.Options.Add(engineOption);
         playCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, referenceOption, play: true, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, outOption: null, play: true, ct));
         root.Subcommands.Add(playCommand);
 
         return root;
@@ -106,7 +113,8 @@ public static class CliRunner
         Option<double> secondsOption,
         Option<int> rateOption,
         Option<bool> use6581Option,
-        Option<bool> referenceOption,
+        Option<SidEngine> engineOption,
+        Option<string?>? outOption,
         bool play,
         CancellationToken ct)
     {
@@ -126,11 +134,12 @@ public static class CliRunner
                 Seconds = parseResult.GetValue(secondsOption),
                 Rate = parseResult.GetValue(rateOption),
                 Filter = parseResult.GetValue(use6581Option) ? FilterMode.M6581 : FilterMode.M8580,
-                Engine = parseResult.GetValue(referenceOption) ? SidEngine.Reference : SidEngine.Firmware,
+                Engine = parseResult.GetValue(engineOption),
+                OutputPath = outOption is null ? null : parseResult.GetValue(outOption),
             };
             Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong})");
 
-            var engineName = settings.Engine == SidEngine.Reference ? "libsidplayfp reference" : "SwinSID firmware";
+            var engineName = EngineName(settings.Engine);
             void Log(string line) => Console.WriteLine(line);
 
             if (play)
@@ -139,7 +148,7 @@ public static class CliRunner
                 return await runner.PlayAsync(tune, settings, Log, ct);
             }
 
-            var outPath = runner.OutputWavPath(tune, settings.Engine);
+            var outPath = runner.OutputWavPath(tune, settings.Engine, settings.OutputPath);
             Console.WriteLine($"Rendering {tune.Name} ({engineName}) -> {outPath}");
             var rc = await runner.RenderAsync(tune, settings, Log, ct);
             if (rc == 0)
@@ -152,4 +161,12 @@ public static class CliRunner
             return 1;
         }
     }
+
+    private static string EngineName(SidEngine engine) => engine switch
+    {
+        SidEngine.Current => "current SwinSID firmware",
+        SidEngine.Original => "original SwinSID firmware",
+        SidEngine.Reference => "libsidplayfp reference",
+        _ => engine.ToString(),
+    };
 }
