@@ -7,8 +7,7 @@
 # Emulator harness build output (the built DLL + exes in /tools/ are committed)
 /sim/build/
 
-# SID tunes (HVSC content) and rendered WAVs - not committed
-/tunes/
+# Rendered WAVs - not committed (the /tunes/ .sid files ARE committed)
 *.wav
 
 # Rendered audio output from the player
