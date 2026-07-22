@@ -190,6 +190,37 @@ extern "C" void write6502(uint16_t a, uint8_t val) {
     g_mem[a] = val;
     if (a >= 0xd400 && a <= 0xd7ff && g_sid_sink) { /* SID + mirrors */
         uint8_t reg = (uint8_t)(a & 0x1f);
+
+        /* Optional diagnostic: log control-register changes per voice (waveform +
+         * sync/ring/test/gate) when SWINSID_LOGSID is set. */
+        static int log_sid = -1;
+        if (log_sid < 0) log_sid = getenv("SWINSID_LOGSID") ? 1 : 0;
+        if (log_sid && (reg == 0x04 || reg == 0x0b || reg == 0x12)) {
+            static uint8_t last_ctrl[3] = { 0xff, 0xff, 0xff };
+            int vi = reg == 0x04 ? 0 : (reg == 0x0b ? 1 : 2);
+            if (val != last_ctrl[vi]) {
+                last_ctrl[vi] = val;
+                emit_log("SIDCTRL v%d ctrl=%02X wave=%s%s%s%s sync=%d ring=%d test=%d gate=%d",
+                         vi + 1, val,
+                         (val & 0x10) ? "tri " : "", (val & 0x20) ? "saw " : "",
+                         (val & 0x40) ? "pul " : "", (val & 0x80) ? "noi " : "",
+                         (val >> 1) & 1, (val >> 2) & 1, (val >> 3) & 1, val & 1);
+            }
+        }
+        if (log_sid && (reg == 0x17 || reg == 0x18)) {   /* filter routing / mode+vol */
+            static uint8_t last_f[2] = { 0xff, 0xff };
+            int fi = reg == 0x17 ? 0 : 1;
+            if (val != last_f[fi]) {
+                last_f[fi] = val;
+                if (reg == 0x17)
+                    emit_log("SIDFILT res=%d filt_v1=%d v2=%d v3=%d ext=%d",
+                             val >> 4, val & 1, (val >> 1) & 1, (val >> 2) & 1, (val >> 3) & 1);
+                else
+                    emit_log("SIDMODE vol=%d LP=%d BP=%d HP=%d 3off=%d",
+                             val & 0x0f, (val >> 4) & 1, (val >> 5) & 1, (val >> 6) & 1, (val >> 7) & 1);
+            }
+        }
+
         if (g_voice_solo) {
             int v = reg_voice(reg);
             if (v >= 0 && v != g_voice_solo - 1) {
