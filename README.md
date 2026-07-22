@@ -46,6 +46,26 @@ What SwimSID2 adds on top of the reconstruction:
   ELF), and the **reference** (libsidplayfp) - so you can hear exactly what a
   firmware change did and how it stacks up against a real C64.
 
+## What's new
+
+- **SID register reads / `$D41B` (OSC3) support — *work in progress*.** The
+  original SwinSID never answers bus reads, so games that read `$D41B` (the
+  voice-3 oscillator output) for random numbers — e.g. **Fort Apocalypse,
+  Uridium, Pirates!, Paradroid** — misbehave. The firmware now detects a read
+  cycle in the chip-select handler and drives the data bus with the requested
+  register, keeping `$D41B` (OSC3) and `$D41C` (ENV3) live from the mixing loop;
+  other registers return their last-written value (close to a real SID's bus
+  behaviour). The emulator was extended to perform real read bus-cycles against
+  the firmware so this is verifiable in software.
+
+  Status: **generally working** — these tunes now get changing `$D41B` values
+  instead of a constant. The pitch/value scaling of the returned oscillator
+  byte is still a bit off versus a real SID, so treat it as a work in progress.
+  It also stays well within the 8&nbsp;KB flash budget (≈3.2&nbsp;KB program).
+  Note: on real hardware at 32&nbsp;MHz the read response is timing-sensitive
+  (interrupt latency vs. the phi2 window), which is why classic SwinSID never
+  supported reads; it is exercised and verified in the emulator.
+
 ## Background
 
 The SwinSID was developed between 2005 and 2012 by Swinkels. In 2014 Codekiller

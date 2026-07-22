@@ -91,8 +91,8 @@ irq_chipselect:
 #ifdef LAZY_JONES_FIX
 	in	r26,p_PINC	; 205 1 Read port C (PC0..PC4 = A0..A4, PC5 = D2, PC6 = reset)
 	in	r11,p_PIND	; 236 1 Read port D (PD0..PD7 = D0..D7, except PD2 which is CS)
-	sbic p_PINB,b5	; 268 1/2 If RW=0 (thus a write to sid) skip the RETI.
-	reti			; 299 1 Ignore reads from the SID.
+	sbic p_PINB,b5	; 268 1/2 If RW=0 (thus a write to sid) skip the branch.
+	rjmp read_reg	; 299 1 Read from the SID: drive the data bus (out of line).
 	in	r12,p_SREG	; 330 1 Save AVR flags register SREG
 	bst	r26,b5		; 361 1 Load D2 into T flag
 	bld	r11,b2		; 393 1 Store T into bit 2, so r11 contains full D0..D7
@@ -163,6 +163,54 @@ nexti1:
 	ldi r23,0xff
 	sts sample_written,r23 ; Tell main loop to generate new sample
 	pop r23
+	reti
+
+;****************************************************************************
+; Chip-select READ handler (out of line; branched to from irq_chipselect).
+;
+; The original SwinSID never answers reads, so games that read $D41B (OSC3) for
+; random numbers (Uridium, Paradroid, Pirates!, ...) misbehave. Here we drive
+; the data bus with the value from the SID register mirror in SRAM. OSC3 ($1B)
+; and ENV3 ($1C) are kept live by the mixing loop; other registers return their
+; last-written value, which is close to a real SID's bus-capacitance behaviour.
+;
+; Data bus: D0,D1,D3-D7 on PORTD; D2 on PC5. PD2 stays input (it is /CS). We
+; hold the value until /CS goes high again (~PHI2 fall) and then tri-state.
+;
+; This runs as part of the INT0 handler and only touches the CS-ISR scratch
+; registers (r11, r12, r26 / X), so it never disturbs the mixing loop.
+;
+; NOTE: on real hardware at 32 MHz the interrupt latency leaves only a few
+; cycles of the PHI2 window, so this is timing-sensitive; it is exercised and
+; verified in the emulator.
+;****************************************************************************
+read_reg:
+	in	 r12,p_SREG			; Save AVR flags register
+	andi r26,0x1f			; r26 = A0..A4, so X points at mirror[reg]
+	ld	 r11,X				; Value to return on the data bus
+	ldi	 r26,0xfb			; PORTD all outputs except PD2 (/CS)
+	out	 p_DDRD,r26
+	out	 p_PORTD,r11		; Drive D0,D1,D3-D7 (bit 2 lands on input PD2: harmless)
+	ldi	 r26,0x20			; PC5 (D2) output
+	out	 p_DDRC,r26
+	ldi	 r26,0xff			; Keep A0-A4/PC6 pulled high, set PC5 = D2
+	sbrs r11,b2				; D2 set?
+	andi r26,0xdf			; No: clear PC5 (0xdf = ~0x20)
+	out	 p_PORTC,r26		; Drive D2 on PC5
+	ldi	 r26,0x00			; 256-iteration safety timeout for the wait
+read_wait:
+	sbic p_PIND,b2			; /CS (PD2) still low? keep holding the value
+	rjmp read_release		; /CS high (~PHI2 fall): release the bus
+	dec	 r26
+	brne read_wait			; guard against a stuck bus
+read_release:
+	ldi	 r26,0x00			; Tri-state: data pins back to inputs
+	out	 p_DDRD,r26
+	out	 p_DDRC,r26
+	ldi	 r26,0xff			; Restore input pull-ups on the bus
+	out	 p_PORTD,r26
+	out	 p_PORTC,r26
+	out	 p_SREG,r12			; Restore AVR flags register
 	reti
 
 ;****************************************************************************
@@ -729,6 +777,15 @@ mixing_loop:
 	; Voice 3
 	;************************************************************************
 	gen_voice 3 2
+
+	; Keep the readable SID registers OSC3 ($1B) and ENV3 ($1C) up to date so
+	; the chip-select read handler can return them. Games (Uridium, Paradroid,
+	; Pirates!, ...) read $D41B for random numbers; without this it is stale.
+	lds r23,waveform_val3		; voice-3 oscillator output (incl. noise LFSR)
+	subi r23,0x80				; signed sample -> unsigned OSC3-style value
+	sts osc3,r23
+	lds r23,envelope_val3		; voice-3 envelope level
+	sts env3,r23
 
 	lds r23,reson
 	sbrs r23,b2					; Is voice 3 filtered?

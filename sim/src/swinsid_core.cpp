@@ -51,6 +51,11 @@ extern "C" {
 #define REG_OCR1AL 0x88   /* coarse audio byte (sample_h -> PB1) */
 #define REG_OCR1BL 0x8a   /* fine   audio byte (sample_l -> PB2) */
 
+/* ATmega88 port output registers in data space (used to read back the byte the
+ * firmware drives onto the data bus during a register read). */
+#define REG_PORTC  0x28
+#define REG_PORTD  0x2b
+
 #define C64_PAL_HZ      985248.0
 #define C64_PAL_FRAME   19656.0     /* cycles per 50.125 Hz frame */
 #define MAXPLAY_INSTR   2000000     /* runaway guard for init/play */
@@ -60,6 +65,11 @@ static uint8_t    g_mem[65536];      /* C64 address space for the 6502 */
 
 /* Register-write sink, swapped per backend (firmware vs reference). */
 static void (*g_sid_sink)(uint8_t reg, uint8_t val);
+
+/* Register-read source: performs a real read bus-cycle against the firmware so
+ * reads of $D41B (OSC3) etc. return what the firmware drives. Null (default)
+ * means "no readable SID" and the 6502 falls back to the RAM shadow. */
+static uint8_t (*g_sid_read_src)(uint8_t reg);
 
 /* Frame timing shared bookkeeping. */
 static uint64_t   g_cpu_at_frame;    /* cpu_clockticks at start of current frame */
@@ -112,7 +122,10 @@ extern "C" uint8_t read6502(uint16_t a) {
     case 0xdc05: return (uint8_t)(cpu_clockticks >> 8);         /* CIA1 timer A hi */
     case 0xdc06: return (uint8_t)(cpu_clockticks);              /* CIA1 timer B lo */
     case 0xdc07: return (uint8_t)(cpu_clockticks >> 8);         /* CIA1 timer B hi */
-    default:     return g_mem[a];
+    default:
+        if (a >= 0xd400 && a <= 0xd7ff && g_sid_read_src)      /* SID + mirrors */
+            return g_sid_read_src((uint8_t)(a & 0x1f));
+        return g_mem[a];
     }
 }
 
@@ -195,6 +208,61 @@ static void fw_sid_write(uint8_t reg, uint8_t val) {
     set_pin(g_pd[2], 0);
 }
 
+/* Advance the AVR by 'cycles', still emitting audio so playback timing holds. */
+static void run_avr_cycles(uint64_t cycles) {
+    uint64_t until = g_avr->cycle + cycles;
+    while (g_avr->cycle < until && !g_done && !g_stop) {
+        int st = avr_run(g_avr);
+        while (g_avr->cycle >= (uint64_t)g_next_sample_avr) {
+            fw_emit_sample();
+            g_next_sample_avr += g_cycles_per_sample;
+            if (g_done) break;
+        }
+        if (st == cpu_Done || st == cpu_Crashed) { g_done = 1; break; }
+    }
+}
+
+/*
+ * Perform one SID register READ bus-cycle against the firmware, mirroring what
+ * a C64 does: put the address on A0-A4, drive R/W high, then assert /CS (INT0).
+ * The firmware's read handler drives the data bus back on PORTD (+PC5 for D2);
+ * we read that straight out of the AVR's PORT registers and reconstruct D0-D7.
+ * Then we raise /CS so the firmware tri-states again.
+ */
+static uint8_t fw_sid_read(uint8_t reg) {
+    uint64_t target = g_frame_avr_base +
+        (uint64_t)((double)(cpu_clockticks - g_cpu_at_frame) * g_ratio);
+    advance_avr_to(target);
+    if (g_done || g_stop) return g_mem[0xd400 + reg];
+
+    /* Address on A0-A4 (PC0-4), reset inactive (PC6). Leave PC5 (D2) alone so
+     * it does not fight the firmware, which will drive it. */
+    for (int i = 0; i < 5; i++) set_pin(g_pc[i], (reg >> i) & 1);
+    set_pin(g_pc[6], 1);
+
+    set_pin(g_pb[5], 1);            /* RW high = read */
+    set_pin(g_pd[2], 1);            /* make sure /CS starts high ... */
+    set_pin(g_pd[2], 0);            /* ... then falling edge triggers INT0 read */
+
+    /* Let the read handler latch the address and drive the bus. */
+    run_avr_cycles(48);
+
+    /* Read back the driven byte from the AVR's own PORT registers (independent
+     * of external nets): D0,D1,D3-D7 on PORTD; D2 on PC5. */
+    uint8_t portd = g_avr->data[REG_PORTD];
+    uint8_t portc = g_avr->data[REG_PORTC];
+    uint8_t val = (uint8_t)(portd & 0xfb);          /* D0,D1,D3-D7 (mask out D2 slot) */
+    val |= (uint8_t)(((portc >> 5) & 1) << 2);      /* D2 from PC5 */
+
+    /* End the access: raise /CS so the firmware releases the bus. */
+    set_pin(g_pd[2], 1);
+    run_avr_cycles(16);
+    set_pin(g_pb[5], 0);            /* back to write default for the next cycle */
+
+    g_mem[0xd400 + reg] = val;      /* keep the RAM shadow coherent */
+    return val;
+}
+
 /* -------------------------------------------------- shared per-call reset */
 static void session_begin(int play, swinsid_log_fn log, void *log_user) {
     g_log             = log;
@@ -205,6 +273,7 @@ static void session_begin(int play, swinsid_log_fn log, void *log_user) {
     g_done            = 0;
     g_samples_emitted = 0;
     g_sid_sink        = nullptr;
+    g_sid_read_src    = nullptr;
 }
 
 static int open_output(int play, const char *wav_path, uint32_t rate,
@@ -348,7 +417,8 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     g_cycles_per_sample = (double)g_avr->frequency / (double)rate;
     g_next_sample_avr   = (double)g_avr->cycle;
 
-    g_sid_sink = fw_sid_write;
+    g_sid_sink     = fw_sid_write;
+    g_sid_read_src = fw_sid_read;   /* answer $D41B (OSC3) & co. from the firmware */
 
     /* Run the tune's init routine (song select in A). */
     player_init(song);
@@ -369,7 +439,8 @@ static int run_firmware(const char *elf_path, const char *sid_path,
         g_frame_avr_base = next;
     }
 
-    g_sid_sink = nullptr;
+    g_sid_sink     = nullptr;
+    g_sid_read_src = nullptr;
     int stopped = g_stop && !g_done;
     close_output(play, wav_path, rate, seconds, "Playback");
     avr_terminate(g_avr);
