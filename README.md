@@ -15,7 +15,7 @@
 complete PC-based emulation/rendering toolchain, so the firmware can be tested
 and improved entirely in software (no C64 or hardware programmer required).
 
-## Why v2?
+## Why V2?
 
 It started with a dead SID. When the sound chip in my Commodore 64 finally gave
 up, the "obvious" fix - the much-praised ARMSID - was simply out of my budget.
