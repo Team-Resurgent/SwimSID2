@@ -106,16 +106,17 @@ What SwimSID2 adds on top of the reconstruction:
   advances its oscillators at a flat **1.000 MHz** (it adds `24 × freq` per
   sample at ~41.7 kHz), but a real C64 SID is clocked at **985,248 Hz (PAL)** or
   **1,022,727 Hz (NTSC)** — so every note is ~1.5% sharp on PAL. SwimSID2 tunes
-  the Timer0 sample rate to the real clock; and because the 8-bit divisor can't
-  land on either target exactly (the nearest integers are **+8 / −10 cents** on
-  PAL), the per-sample interrupt now **dithers the divisor** so the *average*
-  rate is exact. Measured against the cycle-accurate reference the error drops
-  from **+26 cents to ~0 cents on both PAL and NTSC** — and the dithering also
-  spreads the firmware's aliasing images, nudging the noise floor *down*.
-  Crucially the **region is auto-detected from the SID header** (just like the
-  chip model), so an NTSC-authored tune — e.g. *Impossible Mission II* — plays at
-  NTSC pitch *and* tempo and matches the reference, instead of being forced to
-  PAL; `--pal`/`--ntsc` (or the player's **Region** selector) still override it.
+  the Timer0 sample rate to the real clock, cutting the error from **+26 cents to
+  within ~10 cents** on both regions (the 8-bit divisor can't land on either
+  target *exactly*; the residual is +8 cents on PAL, ≈0 on NTSC). Crucially the
+  **region is auto-detected from the SID header** (just like the chip model), so
+  an NTSC-authored tune — e.g. *Impossible Mission II* — plays at NTSC pitch *and*
+  tempo and matches the reference, instead of being forced to PAL; `--pal`/`--ntsc`
+  (or the player's **Region** selector) still override it. (An earlier build
+  dithered the divisor to null the residual to ~0 cents, but the extra per-sample
+  interrupt work pushed the heaviest mixing paths — a filtered voice at high
+  resonance, e.g. *Donkey Kong* — past their deadline and bloomed the bass, so the
+  fine trim was dropped in favour of a rock-solid filter.)
   `make` builds both the PAL and NTSC firmware variants and the right one is
   loaded automatically. (This deviates from the byte-exact reconstruction by one
   constant, on purpose.)
@@ -149,7 +150,7 @@ second:
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Pitch (PAL/NTSC) | ✅ Fixed | +26 cents → ~0 cents (PAL & NTSC) via sample-rate dithering; region auto-detected from the SID header |
+| Pitch (PAL/NTSC) | ✅ Fixed | +26 cents → within ~10 cents (PAL +8, NTSC ≈0) via sample-rate tuning; region auto-detected from the SID header |
 | Filter loudness | ✅ Fixed | Insertion-loss model + optional A/B level-match |
 | Overall brightness/tone | ✅ Much improved | Output DAC/RC rolloff; spectral centroid within a few % on non-filter tunes |
 | `$D41B`/OSC3 reads | ✅ Addressed (WIP) | Games reading OSC3 for RNG now get live values |

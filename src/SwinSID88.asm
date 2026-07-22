@@ -42,23 +42,6 @@ p_SPL	= SPL - __SFR_OFFSET
 p_SPH	= SPH - __SFR_OFFSET
 p_SREG	= SREG - __SFR_OFFSET
 
-; Fractional sample-rate divisor (pitch fine-tune). The 8-bit Timer0 can only
-; make the sample period an integer number of 4 MHz ticks, and no integer lands
-; on the exact PAL/NTSC pitch: OCR0A=96 is +8 cents, 97 is -10 cents. Dithering
-; OCR0A between the two neighbours so the *average* period is right nulls the
-; residual to ~0 cents (see the Timer0 init comment for the arithmetic).
-;   PAL : avg period 97.4375 = 96e6/985248  -> 96 (9/16) + 97 (7/16), inc=112
-;   NTSC: avg period 93.871  = 96e6/1022727 -> 93 (223/256) + 92 (33/256), inc=33
-#ifdef SWINSID_NTSC
-DITHER_OCR_DEF	= 93
-DITHER_OCR_ALT	= 92
-DITHER_INC	= 33
-#else
-DITHER_OCR_DEF	= 96
-DITHER_OCR_ALT	= 97
-DITHER_INC	= 112
-#endif
-
 ;
 ; bit numbers:
 ;
@@ -179,16 +162,12 @@ nexti1:
 	sts OCR1BL,r23		; Write to output compare register B
 	ldi r23,0xff
 	sts sample_written,r23 ; Tell main loop to generate new sample
-	; Fractional-divisor pitch trim: pick this sample's OCR0A (period) so the
-	; running average matches the exact PAL/NTSC clock. Bresenham on dither_acc.
-	lds r23,dither_acc
-	subi r23,-DITHER_INC		; acc += inc (mod 256); carry CLEAR iff wrapped
-	sts dither_acc,r23
-	ldi r23,DITHER_OCR_DEF
-	brcs 1f				; no wrap -> default divisor
-	ldi r23,DITHER_OCR_ALT		; wrapped -> alternate divisor
-1:
-	out p_OCR0A,r23
+	; NOTE: OCR0A (the sample period) is set once at init and deliberately NOT
+	; touched here. An earlier build dithered OCR0A between 96/97 every sample
+	; for a ~8-cent pitch trim, but the extra IRQ work pushed the heaviest
+	; mixing paths (a filtered voice at high resonance, e.g. Donkey Kong voice 1)
+	; past their per-sample deadline, corrupting the recursive filter state and
+	; blooming the bass. Keeping this IRQ lean is worth more than the fine trim.
 	pop r23
 	reti
 
@@ -1087,10 +1066,8 @@ reset:
 	; the real machine. Default is PAL; build with -DSWINSID_NTSC for NTSC.
 	;   PAL  (default): OCR0A=96 -> 4MHz/97 = 41237 Hz -> 24* =  989690 Hz (+0.45% vs 985248)
 	;   NTSC          : OCR0A=93 -> 4MHz/94 = 42553 Hz -> 24* = 1021277 Hz (-0.14% vs 1022727)
-	; A single integer divisor still can't hit the pitch exactly (the next step,
-	; 97/94, overshoots the other way), so the per-sample IRQ dithers OCR0A
-	; between the two neighbours to make the *average* rate exact (~0 cents).
-	; This just seeds the first period; the IRQ takes over from there.
+	; OCR0A is set once here and left alone; the per-sample IRQ must stay lean so
+	; the heaviest mixing paths meet their deadline (see the Timer0 IRQ comment).
 	; Set "clear on compare match" mode, disable PWM
 	ldi r23,0x02
 	out p_TCCR0A,r23
@@ -1609,7 +1586,6 @@ filter_acc_band_h:	.skip	4
 sample_l:			.skip	1
 sample_h:			.skip	3
 sample_written:		.skip	1
-dither_acc:			.skip	1	; fractional-divisor accumulator (pitch fine-tune)
 previous_volume:	.skip	1
 volume_change_progress:	.skip   1
 out_lp_l:			.skip	1	; output low-pass state (C64 output RC/DAC rolloff)
