@@ -15,6 +15,31 @@
 complete PC-based emulation/rendering toolchain, so the firmware can be tested
 and improved entirely in software (no C64 or hardware programmer required).
 
+## Why v2?
+
+It started with a dead SID. When the sound chip in my Commodore 64 finally gave
+up, the "obvious" fix - the much-praised ARMSID - was simply out of my budget.
+So I did what a lot of us do: I bought the affordable option, the **SwinSID
+Nano**, and hoped for the best.
+
+It worked... mostly. But the SwinSID has carried the same well-known quirks for
+years - pitch that runs a touch sharp, filters that are too bright and too loud,
+games that misbehave because the chip never answered register reads. Instead of
+living with them, I decided to fix them.
+
+The problem: iterating on 8-bit AVR firmware by constantly reflashing real
+hardware is painfully slow. So **SwimSID2 was born as much as a workshop as a
+firmware** - a full PC toolchain that assembles the firmware, runs it against
+real `.sid` tunes in a cycle-level emulator, and lets you **A/B it against a
+cycle-accurate C64 reference** (the same engine `sidplayfp`/VLC use) right in
+your speakers. Edit the assembly, hit build, listen, compare, repeat - in
+seconds, not solder fumes.
+
+The result is a SwinSID Nano that's measurably closer to a real 6581/8580, a set
+of long-standing bugs getting squashed one by one, and a repeatable way for
+anyone to keep pushing it further. **A cheap chip, made to sound like it
+belongs.**
+
 ## Credit / upstream
 
 SwimSID2 builds directly on the excellent SwinSID firmware **source
