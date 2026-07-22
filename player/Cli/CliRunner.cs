@@ -30,9 +30,12 @@ public static class CliRunner
 
                 Console.WriteLine($"Tunes in {runner.Paths.TunesDir}:");
                 foreach (var t in tunes)
+                {
+                    var model = t.ModelBits switch { 1 => "6581", 2 => "8580", 3 => "6581/8580", _ => "unspecified" };
                     Console.WriteLine(t.Songs > 1
-                        ? $"  {t.Name}  ({t.Songs} songs, default {t.StartSong})"
-                        : $"  {t.Name}");
+                        ? $"  {t.Name}  ({t.Songs} songs, default {t.StartSong}; model {model})"
+                        : $"  {t.Name}  (model {model})");
+                }
                 return 0;
             }
             catch (Exception ex)
@@ -65,7 +68,11 @@ public static class CliRunner
         };
         var use6581Option = new Option<bool>("--6581")
         {
-            Description = "Use 6581 filter mode (default is 8580).",
+            Description = "Force 6581 chip model (default: auto from the SID header).",
+        };
+        var use8580Option = new Option<bool>("--8580")
+        {
+            Description = "Force 8580 chip model (default: auto from the SID header).",
         };
         var engineOption = new Option<SidEngine>("--engine", "-e")
         {
@@ -94,12 +101,13 @@ public static class CliRunner
         renderCommand.Options.Add(secondsOption);
         renderCommand.Options.Add(rateOption);
         renderCommand.Options.Add(use6581Option);
+        renderCommand.Options.Add(use8580Option);
         renderCommand.Options.Add(engineOption);
         renderCommand.Options.Add(regionOption);
         renderCommand.Options.Add(outOption);
         renderCommand.Options.Add(rawLevelOption);
         renderCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption, rawLevelOption, play: false, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, use8580Option, engineOption, regionOption, outOption, rawLevelOption, play: false, ct));
         root.Subcommands.Add(renderCommand);
 
         // --- play ---
@@ -109,11 +117,12 @@ public static class CliRunner
         playCommand.Options.Add(secondsOption);
         playCommand.Options.Add(rateOption);
         playCommand.Options.Add(use6581Option);
+        playCommand.Options.Add(use8580Option);
         playCommand.Options.Add(engineOption);
         playCommand.Options.Add(regionOption);
         playCommand.Options.Add(rawLevelOption);
         playCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption: null, rawLevelOption, play: true, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, use8580Option, engineOption, regionOption, outOption: null, rawLevelOption, play: true, ct));
         root.Subcommands.Add(playCommand);
 
         return root;
@@ -126,6 +135,7 @@ public static class CliRunner
         Option<double> secondsOption,
         Option<int> rateOption,
         Option<bool> use6581Option,
+        Option<bool> use8580Option,
         Option<SidEngine> engineOption,
         Option<Region> regionOption,
         Option<string?>? outOption,
@@ -148,13 +158,15 @@ public static class CliRunner
                 Song = song,
                 Seconds = parseResult.GetValue(secondsOption),
                 Rate = parseResult.GetValue(rateOption),
-                Filter = parseResult.GetValue(use6581Option) ? FilterMode.M6581 : FilterMode.M8580,
+                Filter = parseResult.GetValue(use6581Option) ? FilterMode.M6581
+                       : parseResult.GetValue(use8580Option) ? FilterMode.M8580
+                       : FilterMode.Auto,
                 Engine = parseResult.GetValue(engineOption),
                 Region = parseResult.GetValue(regionOption),
                 MatchLevel = !parseResult.GetValue(rawLevelOption),
                 OutputPath = outOption is null ? null : parseResult.GetValue(outOption),
             };
-            Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong})");
+            Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong}); model {tune.ResolvedModel(settings.Filter)}");
 
             var engineName = EngineName(settings.Engine);
             void Log(string line) => Console.WriteLine(line);

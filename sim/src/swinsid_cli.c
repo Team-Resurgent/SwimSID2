@@ -38,6 +38,7 @@ static void usage(const char *p) {
         "Usage: %s <firmware.elf> <tune.sid> [out.wav] [options]   (SwinSID firmware)\n"
         "       %s --reference <tune.sid> [out.wav] [options]      (reSIDfp reference)\n"
         "  options: [--song N] [--seconds S] [--rate R] [--6581] [--8580] [--pal] [--ntsc] [--voice N] [--match-level] [--play]\n"
+        "  chip model defaults to the SID header (auto); --6581 / --8580 force it.\n"
         "  --pal (default) / --ntsc select the C64 clock; match how the firmware was built.\n"
         "  --voice N solos a single SID channel (1-3) for A/B comparison; 0 = full mix.\n"
         "  --match-level scales the firmware down to reSIDfp's level for fair A/B loudness.\n"

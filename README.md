@@ -73,6 +73,14 @@ What SwimSID2 adds on top of the reconstruction:
 
 ## What's new
 
+- **Automatic 6581/8580 chip-model selection.** SwinSID always ran one fixed
+  filter model, so a tune written for the other chip got the wrong filter
+  character. The emulator/CLI/player now read the SID file header and drive the
+  firmware in the model the tune was authored for (falling back to 6581, the
+  classic C64 chip, when a tune leaves it unspecified). The reference engine
+  follows the same rule, so an A/B stays fair; `--6581`/`--8580` (or the player's
+  **Chip model** selector) still force it when you want to compare.
+
 - **Output rolloff for a warmer, more accurate tone.** A real C64 rolls the SID
   output off through the DAC and the mainboard's audio RC network, but SwinSID
   emitted the raw PWM signal — so it always sounded noticeably brighter/harsher

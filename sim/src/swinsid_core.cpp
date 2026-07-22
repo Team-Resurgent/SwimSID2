@@ -68,6 +68,19 @@ static inline double region_hz(const swinsid_options *o)    { return region_is_n
 static inline double region_frame(const swinsid_options *o) { return region_is_ntsc(o) ? C64_NTSC_FRAME : C64_PAL_FRAME; }
 static inline const char *region_name(const swinsid_options *o) { return region_is_ntsc(o) ? "NTSC" : "PAL"; }
 
+/* Resolve the chip model. opt->filter8580: <0 = auto (follow the SID header),
+ * 0 = force 6581, 1 = force 8580. 'flags' is the PSID header flags word (bits
+ * 4-5 = SID model: 1=6581, 2=8580, 3=both, 0=unknown). Returns 1 for 8580,
+ * 0 for 6581; *from_tune (optional) is set when the header pinned the model. */
+static int resolve_model(const swinsid_options *o, uint16_t flags, int *from_tune) {
+    if (from_tune) *from_tune = 0;
+    if (o->filter8580 == 0) return 0;   /* forced 6581 */
+    if (o->filter8580 == 1) return 1;   /* forced 8580 */
+    int m = (flags >> 4) & 3;           /* auto */
+    if (m == 1 || m == 2) { if (from_tune) *from_tune = 1; return m == 2; }
+    return 0;                           /* both/unknown -> 6581 (the classic default) */
+}
+
 /* ---------------------------------------------------------- shared session */
 static uint8_t    g_mem[65536];      /* C64 address space for the 6502 */
 
@@ -446,11 +459,13 @@ static int run_firmware(const char *elf_path, const char *sid_path,
 
     uint32_t rate    = opt->rate ? opt->rate : 44100;
     double   seconds = opt->seconds > 0 ? opt->seconds : 30.0;
-    int      mode    = opt->filter8580 ? 1 : 0;   /* PB0 high = 8580 */
 
     sid_info_t sid;
     uint16_t song;
     if (load_tune(sid_path, opt, &sid, &song) != 0) return 1;
+
+    int model_from_tune = 0;
+    int mode = resolve_model(opt, sid.flags, &model_from_tune);   /* PB0 high = 8580 */
 
     /* --- Set up simavr with the firmware ELF. --- */
     elf_firmware_t fw;
@@ -468,8 +483,12 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     g_avr->options.no_pullups = 1;   /* we drive every input pin ourselves */
 
     if (g_avr->frequency == 0) g_avr->frequency = 32000000;
-    emit_log("MCU  : %s @ %u Hz   filter mode=%s   region=%s",
-             fw.mmcu, g_avr->frequency, mode ? "8580" : "6581", region_name(opt));
+    emit_log("MCU  : %s @ %u Hz   filter mode=%s%s   region=%s",
+             fw.mmcu, g_avr->frequency, mode ? "8580" : "6581",
+             (opt->filter8580 < 0)
+                 ? (model_from_tune ? " (auto from tune)" : " (auto; tune unspecified)")
+                 : "",
+             region_name(opt));
 
     for (int i = 0; i < 7; i++)
         g_pc[i] = avr_io_getirq(g_avr, AVR_IOCTL_IOPORT_GETIRQ('C'), i);
@@ -568,7 +587,6 @@ static int run_reference(const char *sid_path, const char *wav_path,
 
     uint32_t rate    = opt->rate ? opt->rate : 44100;
     double   seconds = opt->seconds > 0 ? opt->seconds : 30.0;
-    int      mode    = opt->filter8580 ? 1 : 0;
 
     SidTune tune(sid_path);
     if (!tune.getStatus()) {
@@ -577,6 +595,13 @@ static int run_reference(const char *sid_path, const char *wav_path,
     }
     tune.selectSong(opt->song > 0 ? (unsigned)opt->song : 0);  /* 0 = default */
     const SidTuneInfo *ti = tune.getInfo();
+
+    /* Resolve the model the same way the firmware does, so an A/B stays fair.
+     * In auto mode we follow the tune (forceSidModel off, tune's own model wins);
+     * when the user forces --6581/--8580 we force it on the reference too. */
+    int explicit_model = (opt->filter8580 == 0 || opt->filter8580 == 1);
+    int tune8580 = (ti && ti->sidModel(0) == SidTuneInfo::SIDMODEL_8580);
+    int mode = explicit_model ? (opt->filter8580 == 1) : tune8580;
 
     emit_log("Tune : %s", info_str(ti, 0));
     emit_log("By   : %s (%s)", info_str(ti, 1), info_str(ti, 2));
@@ -598,10 +623,11 @@ static int run_reference(const char *sid_path, const char *wav_path,
     cfg.playback        = SidConfig::MONO;
     cfg.samplingMethod  = SidConfig::RESAMPLE_INTERPOLATE;
     cfg.sidEmulation    = &builder;
-    /* Honour the tune's own SID model when it specifies one; the --6581/--8580
-     * option only decides the model for tunes that leave it unspecified. */
+    /* Auto (default): honour the tune's own SID model; our default only decides
+     * the model for tunes that leave it unspecified. Forced --6581/--8580: pin
+     * the reference to the same model as the firmware for a fair A/B. */
     cfg.defaultSidModel = mode ? SidConfig::MOS8580 : SidConfig::MOS6581;
-    cfg.forceSidModel   = false;
+    cfg.forceSidModel   = explicit_model;
     /* Match the firmware's region so an A/B pitch comparison is fair: force the
      * C64 clock to PAL or NTSC rather than following the tune's own header. */
     cfg.defaultC64Model = region_is_ntsc(opt) ? SidConfig::NTSC : SidConfig::PAL;
@@ -669,7 +695,7 @@ void swinsid_default_options(swinsid_options *opt) {
     opt->song       = 0;
     opt->seconds    = 30.0;
     opt->rate       = 44100;
-    opt->filter8580 = 1;
+    opt->filter8580 = -1;  /* auto: follow the SID header's model */
     opt->region     = 0;   /* PAL */
     opt->voice      = 0;   /* full mix */
     opt->match_level = 0;  /* truthful output; the player opts in for A/B */

@@ -4,6 +4,8 @@ namespace SwimSid.Player.Core;
 
 public enum FilterMode
 {
+    /// <summary>Follow the SID file header's model (the default); falls back to 6581 when unspecified.</summary>
+    Auto,
     M6581,
     M8580,
 }
@@ -29,9 +31,30 @@ public enum SidEngine
 }
 
 /// <summary>A single .sid file discovered in the tunes folder.</summary>
-public sealed record SidTune(string Name, string FullPath, int Songs = 1, int StartSong = 1)
+public sealed record SidTune(string Name, string FullPath, int Songs = 1, int StartSong = 1, int ModelBits = 0)
 {
     public override string ToString() => Name;
+
+    /// <summary>SID model declared by the header: 1 = 6581, 2 = 8580, 3 = both, 0 = unspecified.</summary>
+    public int ModelBits { get; init; } = ModelBits;
+
+    /// <summary>
+    /// The chip model the engine will actually use for this tune under the given
+    /// selection - the same rule the native engine applies. Auto follows the
+    /// header (falling back to 6581), otherwise the forced model wins.
+    /// </summary>
+    public string ResolvedModel(FilterMode mode) => mode switch
+    {
+        FilterMode.M6581 => "6581 (forced)",
+        FilterMode.M8580 => "8580 (forced)",
+        _ => ModelBits switch
+        {
+            1 => "6581 (auto)",
+            2 => "8580 (auto)",
+            3 => "6581 (auto \u00b7 tune: both)",
+            _ => "6581 (auto \u00b7 tune: unspecified)",
+        },
+    };
 }
 
 /// <summary>Render/play parameters passed through to swinsid.dll.</summary>
@@ -40,7 +63,7 @@ public sealed class RenderSettings
     public int Song { get; set; } = 1;
     public double Seconds { get; set; } = 30;
     public int Rate { get; set; } = 44100;
-    public FilterMode Filter { get; set; } = FilterMode.M8580;
+    public FilterMode Filter { get; set; } = FilterMode.Auto;
 
     /// <summary>C64 clock for both the firmware timing and the reference; match the firmware build.</summary>
     public Region Region { get; set; } = Region.Pal;
@@ -148,36 +171,46 @@ public sealed class SwinSidRunner
     /// <summary>Build a SidTune, reading the song count/default song from the PSID header.</summary>
     private static SidTune MakeTune(string path)
     {
-        var (songs, startSong) = ReadSongInfo(path);
-        return new SidTune(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path), songs, startSong);
+        var (songs, startSong, modelBits) = ReadSongInfo(path);
+        return new SidTune(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path), songs, startSong, modelBits);
     }
 
     /// <summary>
-    /// Read the number of sub-songs and the default start song from a PSID/RSID
-    /// header (both are 16-bit big-endian at offsets 0x0E and 0x10). Falls back
-    /// to a single song on any error.
+    /// Read the number of sub-songs and the default start song (both 16-bit
+    /// big-endian, at offsets 0x0E and 0x10) plus the SID model (flags word at
+    /// 0x76 for v2+, bits 4-5: 1 = 6581, 2 = 8580, 3 = both) from a PSID/RSID
+    /// header. Falls back to a single song / unspecified model on any error.
     /// </summary>
-    private static (int Songs, int StartSong) ReadSongInfo(string path)
+    private static (int Songs, int StartSong, int ModelBits) ReadSongInfo(string path)
     {
         try
         {
             using var fs = File.OpenRead(path);
-            Span<byte> h = stackalloc byte[0x18];
-            if (fs.Read(h) < h.Length)
-                return (1, 1);
+            Span<byte> h = stackalloc byte[0x7C];
+            int n = fs.Read(h);
+            if (n < 0x18)
+                return (1, 1, 0);
             if (!(h[0] == (byte)'P' || h[0] == (byte)'R') || h[1] != (byte)'S' || h[2] != (byte)'I' || h[3] != (byte)'D')
-                return (1, 1);
+                return (1, 1, 0);
 
             int songs = (h[0x0E] << 8) | h[0x0F];
             int start = (h[0x10] << 8) | h[0x11];
             if (songs < 1) songs = 1;
             if (start < 1) start = 1;
             if (start > songs) start = songs;
-            return (songs, start);
+
+            int version = (h[0x04] << 8) | h[0x05];
+            int modelBits = 0;
+            if (version >= 2 && n >= 0x78)
+            {
+                int flags = (h[0x76] << 8) | h[0x77];
+                modelBits = (flags >> 4) & 3;
+            }
+            return (songs, start, modelBits);
         }
         catch
         {
-            return (1, 1);
+            return (1, 1, 0);
         }
     }
 
@@ -246,7 +279,7 @@ public sealed class SwinSidRunner
         Song = s.Song,
         Seconds = s.Seconds,
         Rate = (uint)s.Rate,
-        Filter8580 = s.Filter == FilterMode.M8580 ? 1 : 0,
+        Filter8580 = s.Filter switch { FilterMode.M8580 => 1, FilterMode.M6581 => 0, _ => -1 },
         Region = s.Region == Region.Ntsc ? 1 : 0,
         MatchLevel = s.MatchLevel ? 1 : 0,   // firmware-only; no effect on reference
     };

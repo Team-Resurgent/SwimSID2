@@ -16,6 +16,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RenderCommand))]
     [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
+    [NotifyPropertyChangedFor(nameof(ResolvedModelText))]
     private SidTune? _selectedTune;
 
     [ObservableProperty] private decimal _song = 1;
@@ -29,7 +30,22 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty] private decimal _seconds = 180;
     [ObservableProperty] private decimal _rate = 44100;
-    [ObservableProperty] private bool _use6581;
+
+    /// <summary>Chip models: Auto (follow the SID header, default), or force 6581/8580.</summary>
+    public string[] Models { get; } = { "Auto", "6581", "8580" };
+
+    /// <summary>The chip model to emulate; Auto follows each tune's own header.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResolvedModelText))]
+    private string _selectedModel = "Auto";
+
+    /// <summary>The FilterMode the "Chip model" selection maps to.</summary>
+    public FilterMode SelectedFilterMode =>
+        SelectedModel switch { "6581" => FilterMode.M6581, "8580" => FilterMode.M8580, _ => FilterMode.Auto };
+
+    /// <summary>Live read-out of the model the engine will actually use for the selected tune.</summary>
+    public string ResolvedModelText =>
+        SelectedTune is null ? "" : $"\u2192 {SelectedTune.ResolvedModel(SelectedFilterMode)}";
 
     /// <summary>Engines the user can choose between: current firmware, original baseline, reference.</summary>
     public SidEngine[] Engines { get; } = { SidEngine.Current, SidEngine.Original, SidEngine.Reference };
@@ -84,7 +100,7 @@ public partial class MainWindowViewModel : ObservableObject
         Song = (int)Song,
         Seconds = (double)Seconds,
         Rate = (int)Rate,
-        Filter = Use6581 ? FilterMode.M6581 : FilterMode.M8580,
+        Filter = SelectedFilterMode,
         Engine = SelectedEngine,
         Region = SelectedRegion,
         MatchLevel = MatchLevel,
@@ -149,10 +165,11 @@ public partial class MainWindowViewModel : ObservableObject
         IsBusy = true;
         _cts = new CancellationTokenSource();
         var engineName = EngineName(SelectedEngine);
+        var modelName = SelectedModel.ToLowerInvariant();
         Status = play ? $"Playing {tune.Name} ({engineName})..." : $"Rendering {tune.Name} ({engineName})...";
         AppendLog(play
-            ? $"--- play: {tune.Name} (song {(int)Song}, whole tune, {(int)Rate} Hz, {(Use6581 ? "6581" : "8580")}, {engineName}) ---"
-            : $"--- render: {tune.Name} (song {(int)Song}, {(double)Seconds:0.##}s, {(int)Rate} Hz, {(Use6581 ? "6581" : "8580")}, {engineName}) ---");
+            ? $"--- play: {tune.Name} (song {(int)Song}, whole tune, {(int)Rate} Hz, {modelName}, {engineName}) ---"
+            : $"--- render: {tune.Name} (song {(int)Song}, {(double)Seconds:0.##}s, {(int)Rate} Hz, {modelName}, {engineName}) ---");
 
         try
         {

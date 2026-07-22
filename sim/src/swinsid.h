@@ -40,14 +40,15 @@ typedef struct {
     int      song;        /* 1-based sub-song; 0 => the tune's start song */
     double   seconds;     /* duration to render/play                      */
     uint32_t rate;        /* output sample rate in Hz (e.g. 44100)        */
-    int      filter8580;  /* 1 = 8580 filter mode, 0 = 6581               */
+    int      filter8580;  /* chip model: <0 = auto (from SID header),      */
+                          /* 0 = force 6581, 1 = force 8580                */
     int      region;      /* 0 = PAL (default), 1 = NTSC                  */
     int      voice;       /* 0 = full mix (default); 1/2/3 = solo a voice */
     int      match_level; /* 1 = scale firmware down to the reSIDfp line  */
                           /* level so A/B is loudness-matched; 0 = as-is  */
 } swinsid_options;
 
-/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, 8580, PAL). */
+/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, auto model, PAL). */
 SWINSID_API void swinsid_default_options(swinsid_options *opt);
 
 /*

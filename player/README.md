@@ -68,7 +68,7 @@ swimsid list
 # Render 30 s of a tune to output/Commando.wav
 swimsid render Commando
 
-# Options: sub-song, duration, sample rate, filter mode
+# Options: sub-song, duration, sample rate, chip model
 swimsid render Delta --song 12 --seconds 20 --rate 48000 --6581
 
 # Play the whole tune live through the speakers (Ctrl-C to stop)
@@ -92,7 +92,7 @@ swimsid render Commando -o C:\tmp\renders\      # -> C:\tmp\renders\Commando.wav
 | `--song N`    | sub-song number (1-based) | 1 |
 | `--seconds S` | render duration (ignored for `play`, which runs the whole tune) | 180 |
 | `--rate R`    | output sample rate (Hz) | 44100 |
-| `--6581`      | use 6581 filter mode | 8580 |
+| `--6581` / `--8580` | force the SID chip model | auto (from the SID header) |
 | `--engine E` (`-e`) | engine to drive: `current`, `original`, or `reference` | current |
 | `--region R` (`-r`) | C64 clock: `Pal` or `Ntsc` (match how the firmware was built) | Pal |
 | `--out P` (`-o`) | render output: a `.wav` file, or a folder to receive `<tune><suffix>.wav` (render only) | `output/` |
