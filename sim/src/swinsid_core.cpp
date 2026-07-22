@@ -256,6 +256,45 @@ static void fw_sid_write(uint8_t reg, uint8_t val) {
     set_pin(g_pd[2], 0);
 }
 
+/* Drive one SID write against the firmware and let the INT0 handler store it,
+ * WITHOUT emitting audio (used before capture starts, so timing vars need not
+ * be set up yet). */
+static void fw_write_reg_raw(uint8_t reg, uint8_t val) {
+    for (int i = 0; i < 5; i++) set_pin(g_pc[i], (reg >> i) & 1);
+    set_pin(g_pc[5], (val >> 2) & 1);
+    set_pin(g_pc[6], 1);
+    set_pin(g_pd[0], (val >> 0) & 1);
+    set_pin(g_pd[1], (val >> 1) & 1);
+    set_pin(g_pd[3], (val >> 3) & 1);
+    set_pin(g_pd[4], (val >> 4) & 1);
+    set_pin(g_pd[5], (val >> 5) & 1);
+    set_pin(g_pd[6], (val >> 6) & 1);
+    set_pin(g_pd[7], (val >> 7) & 1);
+    set_pin(g_pb[5], 0);              /* RW low = write */
+    set_pin(g_pd[2], 1);
+    set_pin(g_pd[2], 0);              /* /CS falling edge -> INT0 */
+    uint64_t until = g_avr->cycle + 80;
+    while (g_avr->cycle < until) { if (avr_run(g_avr) == cpu_Crashed) break; }
+}
+
+/*
+ * Silence the SwinSID power-on beep. The firmware's reset routine deliberately
+ * gates a short triangle note on voice 1 as an "I'm alive" chirp. On real
+ * hardware you hear it once at power-on, but the emulator resets the AVR for
+ * every render/play, so it would prefix every single tune (and the reSIDfp
+ * reference, having no firmware, never chirps). Clear the SID registers - just
+ * like a real C64 player does before init - so capture starts clean.
+ */
+static void fw_clear_sid_registers(void) {
+    /* Gate every voice off (clear freq/pw/ctrl/ad/sr) but leave master volume
+     * ($D418) alone - writing it would trip the firmware's volume-change "digi"
+     * bias and click. Then let the short release tails decay before we capture. */
+    for (uint8_t r = 0; r < 0x18; r++) fw_write_reg_raw(r, 0x00);
+    set_pin(g_pd[2], 1);                          /* leave /CS idle high */
+    uint64_t until = g_avr->cycle + (uint64_t)(g_avr->frequency * 0.015); /* ~15 ms */
+    while (g_avr->cycle < until) { if (avr_run(g_avr) == cpu_Crashed) break; }
+}
+
 /* Advance the AVR by 'cycles', still emitting audio so playback timing holds. */
 static void run_avr_cycles(uint64_t cycles) {
     uint64_t until = g_avr->cycle + cycles;
@@ -456,6 +495,9 @@ static int run_firmware(const char *elf_path, const char *sid_path,
             return 1;
         }
     }
+
+    /* Kill the firmware's power-on beep before we start capturing. */
+    fw_clear_sid_registers();
 
     if (open_output(play, wav_path, rate, seconds) != 0) {
         avr_terminate(g_avr); g_avr = nullptr;
