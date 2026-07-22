@@ -41,9 +41,11 @@ typedef struct {
     double   seconds;     /* duration to render/play                      */
     uint32_t rate;        /* output sample rate in Hz (e.g. 44100)        */
     int      filter8580;  /* 1 = 8580 filter mode, 0 = 6581               */
+    int      region;      /* 0 = PAL (default), 1 = NTSC                  */
+    int      voice;       /* 0 = full mix (default); 1/2/3 = solo a voice */
 } swinsid_options;
 
-/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, 8580). */
+/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, 8580, PAL). */
 SWINSID_API void swinsid_default_options(swinsid_options *opt);
 
 /*

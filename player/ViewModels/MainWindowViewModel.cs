@@ -37,6 +37,12 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>The engine to drive.</summary>
     [ObservableProperty] private SidEngine _selectedEngine = SidEngine.Current;
 
+    /// <summary>C64 video standards; match how the firmware was built (PAL by default).</summary>
+    public Region[] Regions { get; } = { Region.Pal, Region.Ntsc };
+
+    /// <summary>The C64 clock used for both firmware timing and the reference.</summary>
+    [ObservableProperty] private Region _selectedRegion = Region.Pal;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RenderCommand))]
     [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
@@ -59,8 +65,8 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (!File.Exists(_runner.Paths.EngineDll))
                 AppendLog($"Engine not found: {_runner.Paths.EngineDll}\nBuild it:  ( cd sim && make )");
-            if (!File.Exists(_runner.Paths.CurrentElf))
-                AppendLog($"Current firmware not built: {_runner.Paths.CurrentElf}\nBuild it:  make");
+            if (!File.Exists(_runner.Paths.CurrentPalElf))
+                AppendLog($"Current firmware not built: {_runner.Paths.CurrentPalElf}\nBuild it:  make");
         }
         catch (Exception ex)
         {
@@ -76,6 +82,7 @@ public partial class MainWindowViewModel : ObservableObject
         Rate = (int)Rate,
         Filter = Use6581 ? FilterMode.M6581 : FilterMode.M8580,
         Engine = SelectedEngine,
+        Region = SelectedRegion,
         OutputPath = string.IsNullOrWhiteSpace(OutputPath) ? null : OutputPath.Trim(),
     };
 

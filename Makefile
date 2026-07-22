@@ -9,8 +9,10 @@
 # script.
 #
 # Usage (from a shell with the AVR toolchain on PATH, in this directory):
-#   make            # build the firmware (build/SwinSID88.elf + .hex)
-#   make elf        # only the ELF file (what the emulator needs)
+#   make            # build both variants: build/SwinSID88-{pal,ntsc}.elf + .hex
+#   make pal        # only the PAL variant
+#   make ntsc       # only the NTSC variant
+#   make elf        # just the two ELFs (what the emulator needs)
 #   make clean
 #
 # On Windows this means an MSYS2 UCRT64 shell; see sim/README.md for setup.
@@ -23,6 +25,10 @@ LDSCRIPT = src/SwinSID88.ld
 
 # Only the "Lazy Jones fix" firmware is built: -DLAZY_JONES_FIX selects
 # CodeKiller's fix from the variant-guarded blocks in SwinSID88.asm.
+#
+# Video standard: both variants are built. The NTSC one adds -DSWINSID_NTSC,
+# which picks the NTSC sample-rate divisor so the pitch tracks a real machine
+# (PAL leaves it at the default). See the Timer0 comment in SwinSID88.asm.
 ASFLAGS  = -mmcu=$(MMCU) -x assembler-with-cpp -Wall -DLAZY_JONES_FIX
 LDFLAGS  = -mavr4 -T $(LDSCRIPT)
 
@@ -32,27 +38,45 @@ NAME     = SwinSID88
 SRC      = src/SwinSID88.asm
 DEPS     = src/SwinSID88.h
 
-OBJ = $(BUILD)/$(NAME).o
-ELF = $(BUILD)/$(NAME).elf
-HEX = $(BUILD)/$(NAME).hex
+PAL_OBJ  = $(BUILD)/$(NAME)-pal.o
+PAL_ELF  = $(BUILD)/$(NAME)-pal.elf
+PAL_HEX  = $(BUILD)/$(NAME)-pal.hex
+NTSC_OBJ = $(BUILD)/$(NAME)-ntsc.o
+NTSC_ELF = $(BUILD)/$(NAME)-ntsc.elf
+NTSC_HEX = $(BUILD)/$(NAME)-ntsc.hex
 
-all: $(ELF) $(HEX)
+# Build both variants by default.
+all: pal ntsc
 
-elf: $(ELF)
+pal:  $(PAL_ELF)  $(PAL_HEX)
+ntsc: $(NTSC_ELF) $(NTSC_HEX)
+
+# Both ELFs are what the emulator/player load (PAL + NTSC).
+elf: $(PAL_ELF) $(NTSC_ELF)
 
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(OBJ): $(SRC) $(DEPS) | $(BUILD)
+# PAL uses the default timing; NTSC adds -DSWINSID_NTSC.
+$(PAL_OBJ): $(SRC) $(DEPS) | $(BUILD)
 	$(AVR_CC) $(ASFLAGS) -c $(SRC) -o $@
 
-$(ELF): $(OBJ) $(LDSCRIPT)
+$(NTSC_OBJ): $(SRC) $(DEPS) | $(BUILD)
+	$(AVR_CC) $(ASFLAGS) -DSWINSID_NTSC -c $(SRC) -o $@
+
+$(PAL_ELF): $(PAL_OBJ) $(LDSCRIPT)
 	$(AVR_LD) $(LDFLAGS) -o $@ $<
 
-$(HEX): $(ELF)
+$(NTSC_ELF): $(NTSC_OBJ) $(LDSCRIPT)
+	$(AVR_LD) $(LDFLAGS) -o $@ $<
+
+$(PAL_HEX): $(PAL_ELF)
+	$(OBJCOPY) -j .text -j .wavetable -j .data -O ihex $< $@
+
+$(NTSC_HEX): $(NTSC_ELF)
 	$(OBJCOPY) -j .text -j .wavetable -j .data -O ihex $< $@
 
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all elf clean
+.PHONY: all pal ntsc elf clean

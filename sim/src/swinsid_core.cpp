@@ -57,14 +57,35 @@ extern "C" {
 #define REG_PORTD  0x2b
 
 #define C64_PAL_HZ      985248.0
-#define C64_PAL_FRAME   19656.0     /* cycles per 50.125 Hz frame */
+#define C64_PAL_FRAME   19656.0     /* cycles per 50.125 Hz frame  */
+#define C64_NTSC_HZ     1022727.0
+#define C64_NTSC_FRAME  17095.0     /* cycles per 59.826 Hz frame  */
 #define MAXPLAY_INSTR   2000000     /* runaway guard for init/play */
+
+/* opt->region: 0 = PAL (default), 1 = NTSC. */
+static inline int   region_is_ntsc(const swinsid_options *o) { return o && o->region == 1; }
+static inline double region_hz(const swinsid_options *o)    { return region_is_ntsc(o) ? C64_NTSC_HZ    : C64_PAL_HZ; }
+static inline double region_frame(const swinsid_options *o) { return region_is_ntsc(o) ? C64_NTSC_FRAME : C64_PAL_FRAME; }
+static inline const char *region_name(const swinsid_options *o) { return region_is_ntsc(o) ? "NTSC" : "PAL"; }
 
 /* ---------------------------------------------------------- shared session */
 static uint8_t    g_mem[65536];      /* C64 address space for the 6502 */
 
 /* Register-write sink, swapped per backend (firmware vs reference). */
 static void (*g_sid_sink)(uint8_t reg, uint8_t val);
+
+/* Voice solo for A/B diagnostics: 0 = full mix; 1/2/3 = only that voice is
+ * allowed to reach the firmware (the other two voices' register writes are
+ * dropped, so their gate never opens and they stay silent). */
+static int g_voice_solo = 0;
+
+/* Which SID voice (0..2) owns register 'reg', or -1 for the global regs. */
+static inline int reg_voice(uint8_t reg) {
+    if (reg <= 0x06) return 0;   /* voice 1: freq/pw/ctrl/ad/sr */
+    if (reg <= 0x0d) return 1;   /* voice 2 */
+    if (reg <= 0x14) return 2;   /* voice 3 */
+    return -1;                   /* filter cutoff/res/vol, OSC3/ENV3 reads */
+}
 
 /* Register-read source: performs a real read bus-cycle against the firmware so
  * reads of $D41B (OSC3) etc. return what the firmware drives. Null (default)
@@ -131,8 +152,23 @@ extern "C" uint8_t read6502(uint16_t a) {
 
 extern "C" void write6502(uint16_t a, uint8_t val) {
     g_mem[a] = val;
-    if (a >= 0xd400 && a <= 0xd7ff && g_sid_sink)   /* SID + mirrors */
-        g_sid_sink((uint8_t)(a & 0x1f), val);
+    if (a >= 0xd400 && a <= 0xd7ff && g_sid_sink) { /* SID + mirrors */
+        uint8_t reg = (uint8_t)(a & 0x1f);
+        if (g_voice_solo) {
+            int v = reg_voice(reg);
+            if (v >= 0 && v != g_voice_solo - 1) {
+                /* Mute this voice but keep its oscillator running so hard-sync
+                 * and ring-mod sources for the soloed voice still work (matching
+                 * reSIDfp's mute, which only silences output). All writes pass
+                 * through - freq/pulse/waveform drive the oscillator - except we
+                 * force the GATE bit (ctrl bit 0) off so the envelope stays at
+                 * zero and the voice makes no sound of its own. */
+                if (reg == 0x04 || reg == 0x0b || reg == 0x12)
+                    val &= (uint8_t)~0x01;
+            }
+        }
+        g_sid_sink(reg, val);
+    }
 }
 
 /* ===================================================== FIRMWARE (simavr) === */
@@ -274,6 +310,7 @@ static void session_begin(int play, swinsid_log_fn log, void *log_user) {
     g_samples_emitted = 0;
     g_sid_sink        = nullptr;
     g_sid_read_src    = nullptr;
+    g_voice_solo      = 0;
 }
 
 static int open_output(int play, const char *wav_path, uint32_t rate,
@@ -379,8 +416,8 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     g_avr->options.no_pullups = 1;   /* we drive every input pin ourselves */
 
     if (g_avr->frequency == 0) g_avr->frequency = 32000000;
-    emit_log("MCU  : %s @ %u Hz   filter mode=%s",
-             fw.mmcu, g_avr->frequency, mode ? "8580" : "6581");
+    emit_log("MCU  : %s @ %u Hz   filter mode=%s   region=%s",
+             fw.mmcu, g_avr->frequency, mode ? "8580" : "6581", region_name(opt));
 
     for (int i = 0; i < 7; i++)
         g_pc[i] = avr_io_getirq(g_avr, AVR_IOCTL_IOPORT_GETIRQ('C'), i);
@@ -413,12 +450,14 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     }
     if (play) emit_log("Playing the whole tune (firmware) live at %u Hz (stop to end)...", rate);
 
-    g_ratio             = (double)g_avr->frequency / C64_PAL_HZ;
+    g_ratio             = (double)g_avr->frequency / region_hz(opt);
     g_cycles_per_sample = (double)g_avr->frequency / (double)rate;
     g_next_sample_avr   = (double)g_avr->cycle;
 
     g_sid_sink     = fw_sid_write;
     g_sid_read_src = fw_sid_read;   /* answer $D41B (OSC3) & co. from the firmware */
+    g_voice_solo   = (opt->voice >= 1 && opt->voice <= 3) ? opt->voice : 0;
+    if (g_voice_solo) emit_log("Solo: voice %d only (others muted)", g_voice_solo);
 
     /* Run the tune's init routine (song select in A). */
     player_init(song);
@@ -429,7 +468,7 @@ static int run_firmware(const char *elf_path, const char *sid_path,
 
     /* Frames start now (after init). */
     g_frame_avr_base = g_avr->cycle;
-    uint64_t avr_per_frame = (uint64_t)(C64_PAL_FRAME * g_ratio);
+    uint64_t avr_per_frame = (uint64_t)(region_frame(opt) * g_ratio);
 
     while (!g_done && !g_stop) {
         g_cpu_at_frame = cpu_clockticks;
@@ -504,6 +543,10 @@ static int run_reference(const char *sid_path, const char *wav_path,
      * option only decides the model for tunes that leave it unspecified. */
     cfg.defaultSidModel = mode ? SidConfig::MOS8580 : SidConfig::MOS6581;
     cfg.forceSidModel   = false;
+    /* Match the firmware's region so an A/B pitch comparison is fair: force the
+     * C64 clock to PAL or NTSC rather than following the tune's own header. */
+    cfg.defaultC64Model = region_is_ntsc(opt) ? SidConfig::NTSC : SidConfig::PAL;
+    cfg.forceC64Model   = true;
     if (!engine.config(cfg)) {
         emit_log("error: engine config: %s", engine.error());
         return 1;
@@ -513,6 +556,16 @@ static int run_reference(const char *sid_path, const char *wav_path,
         return 1;
     }
     engine.filter(0, true);
+
+    /* Voice solo (A/B diagnostics): mute the two voices we are not soloing so
+     * the reference plays the same single channel as the firmware solo does. */
+    int solo = (opt->voice >= 1 && opt->voice <= 3) ? opt->voice : 0;
+    if (solo) {
+        /* mute(): enable=true UNmutes, false mutes. Unmute only the soloed one. */
+        for (unsigned v = 0; v < 3; v++)
+            engine.mute(0, v, v == (unsigned)(solo - 1));
+        emit_log("Solo: voice %d only (others muted)", solo);
+    }
 
     /* Report the SID model actually in use. We keep forceSidModel off so the
      * tune's own model wins (correct sound); --6581/--8580 only decides it for
@@ -526,8 +579,8 @@ static int run_reference(const char *sid_path, const char *wav_path,
         default: break;   /* unknown/any -> our default (already set) */
         }
     }
-    emit_log("Reference: libsidplayfp %s (reSIDfp, %s) @ %u Hz",
-             si.version(), model, rate);
+    emit_log("Reference: libsidplayfp %s (reSIDfp, %s, %s) @ %u Hz",
+             si.version(), model, region_name(opt), rate);
 
     if (open_output(play, wav_path, rate, seconds) != 0) return 1;
     if (play) emit_log("Playing the whole tune (libsidplayfp) live at %u Hz (stop to end)...", rate);
@@ -558,6 +611,8 @@ void swinsid_default_options(swinsid_options *opt) {
     opt->seconds    = 30.0;
     opt->rate       = 44100;
     opt->filter8580 = 1;
+    opt->region     = 0;   /* PAL */
+    opt->voice      = 0;   /* full mix */
 }
 
 int swinsid_render(const char *elf_path, const char *sid_path,

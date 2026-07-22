@@ -69,18 +69,20 @@ the .NET player P/Invokes the DLL directly so playback starts and stops in-proce
 From the repo root in the UCRT64 shell:
 
 ```bash
-make                        # builds build/SwinSID88.elf + build/SwinSID88.hex
+make                        # builds build/SwinSID88-{pal,ntsc}.elf + .hex
 ```
 
 This assembles the source with `avr-gcc`/`avr-ld`. The emulator uses the `.elf`
 (it carries the `.mmcu` section that tells simavr the MCU is an ATmega88 @
 32 MHz).
 
-Firmware built (all output lands in `build/`):
+Firmware built (all output lands in `build/`), both with `LAZY_JONES_FIX`
+(CodeKiller's Lazy Jones fix):
 
-| ELF | Source define | Description |
+| ELF | Extra define | Description |
 | --- | --- | --- |
-| `build/SwinSID88.elf` | `LAZY_JONES_FIX` (set in the Makefile) | CodeKiller's Lazy Jones fix (most common) |
+| `build/SwinSID88-pal.elf`  | *(none)*        | PAL timing (985248 Hz) - the default |
+| `build/SwinSID88-ntsc.elf` | `SWINSID_NTSC`  | NTSC timing (1022727 Hz) |
 
 ## 3. Build the harness
 
@@ -102,10 +104,10 @@ HVSC content). Run from the repo root:
 
 ```bash
 # Render 30 s of a tune to a WAV (no audio device touched)
-tools/swinsid_sim.exe build/SwinSID88.elf tunes/Commando.sid out.wav --seconds 30
+tools/swinsid_sim.exe build/SwinSID88-pal.elf tunes/Commando.sid out.wav --seconds 30
 
 # Play the whole tune live through the speakers (streams in real time; Ctrl-C to stop)
-tools/swinsid_sim.exe build/SwinSID88.elf tunes/Commando.sid --play
+tools/swinsid_sim.exe build/SwinSID88-pal.elf tunes/Commando.sid --play
 
 # Same tune through the libsidplayfp reference (no firmware ELF needed) for comparison
 tools/swinsid_sim.exe --reference tunes/Commando.sid ref.wav --seconds 30
@@ -125,6 +127,7 @@ Options:
 | `--seconds S` | render length in seconds (CLI default 180; ignored for `--play`) |
 | `--rate R`    | output sample rate (default 44100) |
 | `--6581` / `--8580` | select filter mode (6581 vs 8580 chip model; default 8580) |
+| `--pal` / `--ntsc` | C64 clock for firmware timing and the reference (default PAL; match how the firmware was built) |
 | `--play`      | stream the whole tune live to the audio device instead of writing a WAV |
 | `--reference` (`--ref`) | drive the libsidplayfp reference player instead of the SwinSID firmware |
 

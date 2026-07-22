@@ -37,6 +37,8 @@ internal static class NativeMethods
         public double Seconds;
         public uint Rate;
         public int Filter8580;   // 1 = 8580, 0 = 6581
+        public int Region;       // 0 = PAL (default), 1 = NTSC
+        public int Voice;        // 0 = full mix (default); 1/2/3 = solo a voice
     }
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]

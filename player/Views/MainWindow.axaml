@@ -73,13 +73,21 @@
                                 <TextBlock Text="Filter" Opacity="0.8" />
                                 <CheckBox Content="Use 6581 (default 8580)" IsChecked="{Binding Use6581}" />
                             </StackPanel>
-                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="4" Margin="0,12,0,0">
+                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
                                 <TextBlock Text="Engine" Opacity="0.8" />
                                 <ComboBox ItemsSource="{Binding Engines}"
                                           SelectedItem="{Binding SelectedEngine}"
                                           HorizontalAlignment="Stretch" />
                                 <TextBlock Opacity="0.55" FontSize="12"
-                                           Text="Current = built firmware  ·  Original = frozen baseline  ·  Reference = libsidplayfp (real C64)" />
+                                           Text="Current = built firmware  ·  Original = baseline  ·  Reference = libsidplayfp" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4" Margin="0,12,0,0">
+                                <TextBlock Text="Region" Opacity="0.8" />
+                                <ComboBox ItemsSource="{Binding Regions}"
+                                          SelectedItem="{Binding SelectedRegion}"
+                                          HorizontalAlignment="Stretch" />
+                                <TextBlock Opacity="0.55" FontSize="12"
+                                           Text="C64 clock; match the firmware build (NTSC needs make NTSC=1)" />
                             </StackPanel>
                         </Grid>
 

@@ -72,6 +72,11 @@ public static class CliRunner
             Description = "Engine: current (built firmware), original (frozen baseline), or reference (libsidplayfp).",
             DefaultValueFactory = _ => SidEngine.Current,
         };
+        var regionOption = new Option<Region>("--region", "-r")
+        {
+            Description = "C64 clock: Pal (default) or Ntsc. Match how the firmware was built (make NTSC=1).",
+            DefaultValueFactory = _ => Region.Pal,
+        };
         var outOption = new Option<string?>("--out", "-o")
         {
             Description = "Render output path: a .wav file, or a folder to receive <tune><suffix>.wav. Defaults to the output/ folder.",
@@ -86,9 +91,10 @@ public static class CliRunner
         renderCommand.Options.Add(rateOption);
         renderCommand.Options.Add(use6581Option);
         renderCommand.Options.Add(engineOption);
+        renderCommand.Options.Add(regionOption);
         renderCommand.Options.Add(outOption);
         renderCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, outOption, play: false, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption, play: false, ct));
         root.Subcommands.Add(renderCommand);
 
         // --- play ---
@@ -99,8 +105,9 @@ public static class CliRunner
         playCommand.Options.Add(rateOption);
         playCommand.Options.Add(use6581Option);
         playCommand.Options.Add(engineOption);
+        playCommand.Options.Add(regionOption);
         playCommand.SetAction((parseResult, ct) => RunAsync(
-            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, outOption: null, play: true, ct));
+            parseResult, tuneArgument, songOption, secondsOption, rateOption, use6581Option, engineOption, regionOption, outOption: null, play: true, ct));
         root.Subcommands.Add(playCommand);
 
         return root;
@@ -114,6 +121,7 @@ public static class CliRunner
         Option<int> rateOption,
         Option<bool> use6581Option,
         Option<SidEngine> engineOption,
+        Option<Region> regionOption,
         Option<string?>? outOption,
         bool play,
         CancellationToken ct)
@@ -135,6 +143,7 @@ public static class CliRunner
                 Rate = parseResult.GetValue(rateOption),
                 Filter = parseResult.GetValue(use6581Option) ? FilterMode.M6581 : FilterMode.M8580,
                 Engine = parseResult.GetValue(engineOption),
+                Region = parseResult.GetValue(regionOption),
                 OutputPath = outOption is null ? null : parseResult.GetValue(outOption),
             };
             Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong})");

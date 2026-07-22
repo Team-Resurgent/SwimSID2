@@ -37,7 +37,9 @@ static void usage(const char *p) {
     fprintf(stderr,
         "Usage: %s <firmware.elf> <tune.sid> [out.wav] [options]   (SwinSID firmware)\n"
         "       %s --reference <tune.sid> [out.wav] [options]      (reSIDfp reference)\n"
-        "  options: [--song N] [--seconds S] [--rate R] [--6581] [--8580] [--play]\n"
+        "  options: [--song N] [--seconds S] [--rate R] [--6581] [--8580] [--pal] [--ntsc] [--voice N] [--play]\n"
+        "  --pal (default) / --ntsc select the C64 clock; match how the firmware was built.\n"
+        "  --voice N solos a single SID channel (1-3) for A/B comparison; 0 = full mix.\n"
         "  --play streams the whole tune until Ctrl-C; --seconds bounds render only.\n", p, p);
 }
 
@@ -57,6 +59,9 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--rate") && i + 1 < argc)    opt.rate = (uint32_t)atoi(argv[++i]);
         else if (!strcmp(argv[i], "--6581"))                    opt.filter8580 = 0;
         else if (!strcmp(argv[i], "--8580"))                    opt.filter8580 = 1;
+        else if (!strcmp(argv[i], "--pal"))                     opt.region = 0;
+        else if (!strcmp(argv[i], "--ntsc"))                    opt.region = 1;
+        else if (!strcmp(argv[i], "--voice") && i + 1 < argc)   opt.voice = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--play"))                    play = 1;
         else if (!strcmp(argv[i], "--reference") ||
                  !strcmp(argv[i], "--ref"))                     reference = 1;

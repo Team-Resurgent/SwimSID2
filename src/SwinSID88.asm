@@ -898,7 +898,22 @@ filterh_nonzero:
 	satadds16 r18 r17,r1 r0	; Macro for saturated addition r5:r4 := r18:r17 + r1:r0
 	sts filter_acc_low_l,r17
 	sts filter_acc_low_h,r18
-	
+
+	; --- Filter output attenuation ---------------------------------------
+	; A real 6581 filter has significant insertion loss: routing a voice
+	; through the filter makes that voice noticeably quieter. SwinSID
+	; historically mixed the low/band/high components in at full weight, so
+	; filtered - and especially resonant / swept - voices ended up far
+	; louder than on real hardware (and than reSIDfp). Halve each component
+	; so filtered voices sit at the right level next to the un-filtered ones.
+	; The persistent accumulators were already stored above, so scaling
+	; these working copies only affects the mixed-in output, not filter state.
+	asr r18					; low  /= 2 (arithmetic, sign preserving)
+	ror r17
+	asr r22					; band /= 2
+	ror r21
+	asr r9					; high /= 2
+
 	lds	r2,vol_fil			; Low pass enabled?
 	sbrs r2,b4				; Skip next jump if yes
 	rjmp no_low_pass		; Jump if low pass not enabled
@@ -1008,16 +1023,27 @@ reset:
 	ldi r23,0x06
 	out p_DDRB,r23
 
-	; Initialize timer 0 (timer interrupt)
-	; The interrupt is triggered 32000000 / 8 / 96 = 41667 times per second
+	; Initialize timer 0 (the per-sample interrupt).
+	; Timer clock source = CLKIO/8 = 4 MHz; CTC mode resets on OCR0A, so the
+	; sample rate is 4MHz / (OCR0A+1). The oscillator adds 24*freq per sample,
+	; so the effective SID master clock is 24 * sample_rate.
+	;
+	; The original SwinSID uses OCR0A=95 -> 41667 Hz -> 24* = 1.000 MHz flat,
+	; which is ~1.5% sharp on PAL (985248 Hz) and ~2.2% flat on NTSC (1022727).
+	; SwimSID2 instead picks the divisor per video standard so the pitch tracks
+	; the real machine. Default is PAL; build with -DSWINSID_NTSC for NTSC.
+	;   PAL  (default): OCR0A=96 -> 4MHz/97 = 41237 Hz -> 24* =  989690 Hz (+0.45% vs 985248)
+	;   NTSC          : OCR0A=93 -> 4MHz/94 = 42553 Hz -> 24* = 1021277 Hz (-0.14% vs 1022727)
 	; Set "clear on compare match" mode, disable PWM
-	; Timer clock source = CLKIO/8
 	ldi r23,0x02
 	out p_TCCR0A,r23
 	ldi r23,0x02
 	out p_TCCR0B,r23
-	; OCR0A = 95 ; Reset timer on counter value 95
-	ldi r23,95
+#ifdef SWINSID_NTSC
+	ldi r23,93			; NTSC sample-rate divisor (reset timer on 93)
+#else
+	ldi r23,96			; PAL sample-rate divisor (reset timer on 96, default)
+#endif
 	out p_OCR0A,r23
 	; Enable timer 0 output compare match A interrupt
 	ldi r23,0x02

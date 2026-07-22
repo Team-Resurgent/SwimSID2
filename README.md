@@ -48,6 +48,18 @@ What SwimSID2 adds on top of the reconstruction:
 
 ## What's new
 
+- **PAL/NTSC pitch correction.** The original SwinSID advances its oscillators
+  at a flat **1.000 MHz** (it adds `24 × freq` per sample at ~41.7 kHz), but a
+  real C64 SID is clocked at **985,248 Hz (PAL)** or **1,022,727 Hz (NTSC)** — so
+  every note is ~1.5% sharp on PAL. SwimSID2 now picks the Timer0 sample-rate
+  divisor per video standard so the pitch tracks the real machine. Measured
+  against the cycle-accurate reference, the error drops from **+26 cents** to
+  **+6 cents (PAL)** / **−2 cents (NTSC)** — effectively inaudible. Build the
+  default PAL firmware with `make`, or the NTSC variant with `make NTSC=1`; the
+  emulator, CLI (`--region`) and player expose a matching PAL/NTSC selector so
+  A/B comparisons stay fair. (This deviates from the byte-exact reconstruction
+  by one constant, on purpose.)
+
 - **SID register reads / `$D41B` (OSC3) support — *work in progress*.** The
   original SwinSID never answers bus reads, so games that read `$D41B` (the
   voice-3 oscillator output) for random numbers — e.g. **Fort Apocalypse,
@@ -59,9 +71,9 @@ What SwimSID2 adds on top of the reconstruction:
   the firmware so this is verifiable in software.
 
   Status: **generally working** — these tunes now get changing `$D41B` values
-  instead of a constant. The pitch/value scaling of the returned oscillator
-  byte is still a bit off versus a real SID, so treat it as a work in progress.
-  It also stays well within the 8&nbsp;KB flash budget (≈3.2&nbsp;KB program).
+  instead of a constant. The exact value scaling of the returned oscillator
+  byte is still approximate versus a real SID, so treat it as a work in
+  progress. It stays well within the 8&nbsp;KB flash budget (≈3.2&nbsp;KB program).
   Note: on real hardware at 32&nbsp;MHz the read response is timing-sensitive
   (interrupt latency vs. the phi2 window), which is why classic SwinSID never
   supported reads; it is exercised and verified in the emulator.
@@ -105,10 +117,11 @@ engine is built with the UCRT64 GCC toolchain.
    ```bash
    git clone --recurse-submodules https://github.com/Team-Resurgent/SwimSID2.git
    cd SwimSID2
-   make            # -> build/SwinSID88.elf + build/SwinSID88.hex
+   make            # -> build/SwinSID88-{pal,ntsc}.elf + .hex
    ```
 
-The result is `build/SwinSID88.hex` - the "Lazy Jones fix" firmware.
+The result is `build/SwinSID88-pal.hex` / `build/SwinSID88-ntsc.hex` - the
+"Lazy Jones fix" firmware, built for both video standards (see What's new).
 See [`sim/README.md`](sim/README.md) for the full emulator/engine build
 (simavr submodule, `swinsid.dll`), and [`player/README.md`](player/README.md)
 for the .NET player (which needs the .NET SDK).

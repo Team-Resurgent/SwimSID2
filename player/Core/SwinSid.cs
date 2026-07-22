@@ -8,6 +8,15 @@ public enum FilterMode
     M8580,
 }
 
+/// <summary>C64 video standard / SID master clock. Match how the firmware was built.</summary>
+public enum Region
+{
+    /// <summary>PAL (985248 Hz) - the firmware's default build.</summary>
+    Pal,
+    /// <summary>NTSC (1022727 Hz) - requires a firmware built with make NTSC=1.</summary>
+    Ntsc,
+}
+
 /// <summary>Which SID engine to drive.</summary>
 public enum SidEngine
 {
@@ -33,6 +42,9 @@ public sealed class RenderSettings
     public int Rate { get; set; } = 44100;
     public FilterMode Filter { get; set; } = FilterMode.M8580;
 
+    /// <summary>C64 clock for both the firmware timing and the reference; match the firmware build.</summary>
+    public Region Region { get; set; } = Region.Pal;
+
     /// <summary>Current firmware (default), the original firmware baseline, or the libsidplayfp reference.</summary>
     public SidEngine Engine { get; set; } = SidEngine.Current;
 
@@ -51,17 +63,25 @@ public sealed class SwinSidPaths
     public string RepoRoot { get; }
 
     public string EngineDll => Path.Combine(RepoRoot, "tools", "swinsid.dll");
-    /// <summary>The current firmware, freshly built from src/ into build/.</summary>
-    public string CurrentElf => Path.Combine(RepoRoot, "build", "SwinSID88.elf");
+    /// <summary>The current firmware (PAL build), freshly built from src/ into build/.</summary>
+    public string CurrentPalElf => Path.Combine(RepoRoot, "build", "SwinSID88-pal.elf");
+    /// <summary>The current firmware (NTSC build).</summary>
+    public string CurrentNtscElf => Path.Combine(RepoRoot, "build", "SwinSID88-ntsc.elf");
+    /// <summary>The current firmware ELF for the given region.</summary>
+    public string CurrentElf(Region region) => region == Region.Ntsc ? CurrentNtscElf : CurrentPalElf;
     /// <summary>The frozen original firmware baseline, committed under tools/.</summary>
     public string OriginalElf => Path.Combine(RepoRoot, "tools", "SwinSID88.original.elf");
     public string TunesDir => Path.Combine(RepoRoot, "tunes");
     public string OutputDir => Path.Combine(RepoRoot, "output");
 
-    /// <summary>The firmware ELF backing a given engine (null for the non-firmware reference).</summary>
-    public string? ElfFor(SidEngine engine) => engine switch
+    /// <summary>
+    /// The firmware ELF backing a given engine (null for the non-firmware
+    /// reference). The current firmware honours the region so its baked-in pitch
+    /// matches; the original baseline is a single region-agnostic snapshot.
+    /// </summary>
+    public string? ElfFor(SidEngine engine, Region region) => engine switch
     {
-        SidEngine.Current => CurrentElf,
+        SidEngine.Current => CurrentElf(region),
         SidEngine.Original => OriginalElf,
         _ => null,
     };
@@ -203,14 +223,14 @@ public sealed class SwinSidRunner
         return asDirectory ? Path.Combine(full, tune.Name + WavSuffix(engine)) : full;
     }
 
-    private void EnsureReady(SidEngine engine)
+    private void EnsureReady(SidEngine engine, Region region)
     {
         if (!File.Exists(Paths.EngineDll))
             throw new FileNotFoundException(
                 $"Engine not found: {Paths.EngineDll}\nBuild it with:  ( cd sim && make )");
 
         // The reference (libsidplayfp) engine needs no firmware ELF.
-        var elf = Paths.ElfFor(engine);
+        var elf = Paths.ElfFor(engine, region);
         if (elf is not null && !File.Exists(elf))
             throw new FileNotFoundException(engine == SidEngine.Current
                 ? $"Current firmware not built: {elf}\nBuild it with:  make"
@@ -223,32 +243,33 @@ public sealed class SwinSidRunner
         Seconds = s.Seconds,
         Rate = (uint)s.Rate,
         Filter8580 = s.Filter == FilterMode.M8580 ? 1 : 0,
+        Region = s.Region == Region.Ntsc ? 1 : 0,
     };
 
     public Task<int> RenderAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)
     {
-        EnsureReady(settings.Engine);
+        EnsureReady(settings.Engine, settings.Region);
         var wav = OutputWavPath(tune, settings.Engine, settings.OutputPath);
         var dir = Path.GetDirectoryName(wav);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
-        return RunNativeAsync(settings.Engine, play: false, tune.FullPath, wav, ToOptions(settings), log, ct);
+        return RunNativeAsync(settings.Engine, settings.Region, play: false, tune.FullPath, wav, ToOptions(settings), log, ct);
     }
 
     public Task<int> PlayAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)
     {
-        EnsureReady(settings.Engine);
-        return RunNativeAsync(settings.Engine, play: true, tune.FullPath, null, ToOptions(settings), log, ct);
+        EnsureReady(settings.Engine, settings.Region);
+        return RunNativeAsync(settings.Engine, settings.Region, play: true, tune.FullPath, null, ToOptions(settings), log, ct);
     }
 
     /// <summary>
     /// Invoke the blocking native render/play on a background thread. Cancellation
     /// calls swinsid_stop(), which unblocks the engine promptly (stopping audio).
     /// </summary>
-    private Task<int> RunNativeAsync(SidEngine engine, bool play, string sidPath, string? wavPath,
+    private Task<int> RunNativeAsync(SidEngine engine, Region region, bool play, string sidPath, string? wavPath,
         NativeMethods.Options options, Action<string>? log, CancellationToken ct)
     {
-        var elf = Paths.ElfFor(engine) ?? "";
+        var elf = Paths.ElfFor(engine, region) ?? "";
 
         return Task.Run(() =>
         {
