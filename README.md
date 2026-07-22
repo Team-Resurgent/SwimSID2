@@ -2,7 +2,11 @@
   <img src="assets/icon.png" alt="SwimSID2 icon" width="256" height="256">
 </p>
 
-# SwimSID2
+<h1 align="center">SwimSID2</h1>
+
+<p align="center">
+  SwinSID Nano firmware continuation with a full PC emulation &amp; rendering toolchain
+</p>
 
 **SwimSID2** is a [Team-Resurgent](https://github.com/Team-Resurgent) project (by
 **EqUiNoX**) that continues development of the SwinSID Nano firmware and adds a
