@@ -124,6 +124,33 @@ What SwimSID2 adds on top of the reconstruction:
   (interrupt latency vs. the phi2 window), which is why classic SwinSID never
   supported reads; it is exercised and verified in the emulator.
 
+## Fidelity: what's fixed vs what's inherent
+
+SwinSID uses a *simplified* model of the SID chip, so - depending on the song -
+its fidelity has historically ranged from "good" to "obviously broken". It helps
+to split that into two buckets: **objective bugs** (fixable) and the
+**simplified-model gap** (an inherent ceiling of doing SID emulation on an 8-bit
+ATmega88). SwimSID2 has knocked down most of the first bucket and narrowed the
+second:
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Pitch (PAL/NTSC) | ✅ Fixed | +26 cents → +6 (PAL) / −2 (NTSC) cents vs the reference |
+| Filter loudness | ✅ Fixed | Insertion-loss model + optional A/B level-match |
+| Overall brightness/tone | ✅ Much improved | Output DAC/RC rolloff; spectral centroid within a few % on non-filter tunes |
+| `$D41B`/OSC3 reads | ✅ Addressed (WIP) | Games reading OSC3 for RNG now get live values |
+| Power-on beep prefixing every render | ✅ Fixed | Emulator gates voices before capture (this one was a harness artifact) |
+| Chip model per tune | ✅ Auto-selected | Firmware 6581/8580 mode now follows the SID header by default (override with `--6581`/`--8580`) |
+| Analog **filter shape** (resonance strength, cutoff curve, 6581 nonlinearity) | ⚠️ Partial | Level/brightness match well; the resonant-sweep character (e.g. *Wizard of Wor* bass) still differs - discrete SVF vs a real analog filter |
+| **Combined waveforms** (saw+tri wave-ANDing) | ❌ Inherent | Approximate tables vs sampled silicon behaviour |
+| **DAC nonlinearity / exact ADSR quirks** | ❌ Inherent | SwinSID is linear / simplified |
+
+The practical upshot: the things that made specific songs sound *broken* (wrong
+pitch, blaring filters, glitchy RNG games, the startup beep) are largely handled.
+What remains is the genuinely hard part - the analog filter, combined waveforms
+and DAC nonlinearities - which the toolchain here at least lets us **measure**
+against a cycle-accurate reference and chip away at deliberately.
+
 ## Background
 
 The SwinSID was developed between 2005 and 2012 by Swinkels. In 2014 Codekiller
