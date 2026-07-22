@@ -48,6 +48,17 @@ What SwimSID2 adds on top of the reconstruction:
 
 ## What's new
 
+- **Output rolloff for a warmer, more accurate tone.** A real C64 rolls the SID
+  output off through the DAC and the mainboard's audio RC network, but SwinSID
+  emitted the raw PWM signal — so it always sounded noticeably brighter/harsher
+  than hardware, and its non-band-limited wavetables leaked high harmonics the
+  SID filter cannot remove. The firmware now runs a cheap one-pole low-pass on
+  the output (~9.7 kHz corner). Measured against the cycle-accurate reference,
+  the spectral centroid now lands within a few percent on non-filter tunes
+  (Commando 4.42 vs 4.46 kHz, Delta 2.65 vs 2.60 kHz, Donkey Kong 4.27 vs
+  4.36 kHz) and the harsh top-end on resonant sweeps (e.g. *Wizard of Wor*) is
+  much closer. Costs ~20 cycles/sample and 2 bytes of SRAM.
+
 - **Filter loudness fix + A/B level-matching.** SwinSID mixed the filter's
   low/band/high components in at full weight, with no insertion loss, so
   filtered — especially resonant/swept — voices ran far louder than a real 6581

@@ -971,6 +971,32 @@ sample_not_written:
 	lds r23,sample_written
 	tst r23		; Zero?
 	breq sample_not_written	; If zero then loop
+	; --- Output low-pass -------------------------------------------------
+	; A real C64 rolls the SID output off through the DAC and the mainboard's
+	; audio RC network; SwinSID emits the raw PWM signal, so it sounds much
+	; brighter (and its non-band-limited wavetables leak high harmonics the
+	; filter cannot remove). Apply a cheap one-pole low-pass on the signed
+	; sample: lp += (sample - lp) * 3/4  (~9.7 kHz corner at the sample rate).
+	lds r0,out_lp_l
+	lds r1,out_lp_h
+	mov r24,r4
+	mov r25,r5
+	sub r24,r0
+	sbc r25,r1				; r25:r24 = diff = sample - lp (signed)
+	movw r2,r24				; r3:r2 = diff copy
+	asr r3
+	ror r2					; diff >> 1
+	asr r3
+	ror r2					; r3:r2 = diff >> 2
+	sub r24,r2
+	sbc r25,r3				; r25:r24 = diff - diff>>2 = diff * 3/4
+	add r0,r24
+	adc r1,r25				; lp += diff * 3/4
+	sts out_lp_l,r0
+	sts out_lp_h,r1
+	mov r4,r0
+	mov r5,r1
+	; ---------------------------------------------------------------------
 	ldi r23,0x80
 	eor r5,r23
 	sts sample_h,r5
@@ -1129,6 +1155,10 @@ reset:
 	sts filter_acc_low_l,r23
 	sts filter_acc_band_h,r23
 	sts filter_acc_band_l,r23
+
+	; Initialize the output low-pass state (avoids a startup transient)
+	sts out_lp_l,r23
+	sts out_lp_h,r23
 	
 	; Initialize unused registers to 0
 	clr r23
@@ -1538,3 +1568,5 @@ sample_h:			.skip	3
 sample_written:		.skip	1
 previous_volume:	.skip	1
 volume_change_progress:	.skip   1
+out_lp_l:			.skip	1	; output low-pass state (C64 output RC/DAC rolloff)
+out_lp_h:			.skip	1
