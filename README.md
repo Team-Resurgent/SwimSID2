@@ -2,13 +2,11 @@
   <img src="assets/icon.png" alt="SwimSID2 icon" width="256" height="256">
 </p>
 
-<h1 align="center">SwimSID2</h1>
-
-<p align="center">
-  SwinSID Nano firmware continuation with a full PC emulation &amp; rendering toolchain
-</p>
-
----
+<h1 align="center">
+  SwimSID2
+  <br>
+  <sub>SwinSID Nano firmware continuation with a full PC emulation &amp; rendering toolchain</sub>
+</h1>
 
 <br>
 
@@ -63,24 +61,37 @@ a byte-exact copy of the original, and SwimSID2 continues from there.
 
 ## How to build
 
-The firmware builds with `avr-gcc`/`avr-ld`. You need cross AVR binutils and
-avr-libc installed.
+This project is developed and built on **Windows using [MSYS2](https://www.msys2.org/)
+(UCRT64)**. The firmware is assembled with `avr-gcc`/`avr-ld` and the emulator
+engine is built with the UCRT64 GCC toolchain.
 
-- Debian/Ubuntu: `apt-get install binutils-avr gcc-avr avr-libc`
-- Red Hat/CentOS: `yum install avr-binutils avr-libc`
-- (Open)SuSE: `zypper install cross-avr-binutils avr-libc`
-- Windows: via MSYS2 UCRT64 - see [`sim/README.md`](sim/README.md) for setup.
+1. Install MSYS2 (e.g. `winget install MSYS2.MSYS2`), then open the **MSYS2
+   UCRT64** shell (not the plain MSYS shell) and install the toolchain:
 
-No include path needs configuring. Clone with submodules (for the emulator's
-simavr dependency), then build:
+   ```bash
+   pacman -Syu   # (run twice if it asks to close the terminal)
+   pacman -S --needed git make diffutils \
+       mingw-w64-ucrt-x86_64-gcc \
+       mingw-w64-ucrt-x86_64-avr-binutils \
+       mingw-w64-ucrt-x86_64-avr-gcc \
+       mingw-w64-ucrt-x86_64-avr-libc \
+       mingw-w64-ucrt-x86_64-libelf \
+       mingw-w64-ucrt-x86_64-libsidplayfp
+   ```
 
-```bash
-git clone --recurse-submodules https://github.com/Team-Resurgent/SwimSID2.git
-cd SwimSID2
-make            # -> build/SwinSID88.elf + build/SwinSID88.hex
-```
+2. Clone with submodules (for the emulator's simavr dependency) and build the
+   firmware from the repo root in the UCRT64 shell:
+
+   ```bash
+   git clone --recurse-submodules https://github.com/Team-Resurgent/SwimSID2.git
+   cd SwimSID2
+   make            # -> build/SwinSID88.elf + build/SwinSID88.hex
+   ```
 
 The result is `build/SwinSID88.hex` - the "Lazy Jones fix" firmware.
+See [`sim/README.md`](sim/README.md) for the full emulator/engine build
+(simavr submodule, `swinsid.dll`), and [`player/README.md`](player/README.md)
+for the .NET player (which needs the .NET SDK).
 
 ## Emulate and improve
 
