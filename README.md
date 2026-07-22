@@ -8,6 +8,10 @@
   SwinSID Nano firmware continuation with a full PC emulation &amp; rendering toolchain
 </p>
 
+---
+
+<br>
+
 **SwimSID2** is a [Team-Resurgent](https://github.com/Team-Resurgent) project (by
 **EqUiNoX**) that continues development of the SwinSID Nano firmware and adds a
 complete PC-based emulation/rendering toolchain, so the firmware can be tested
