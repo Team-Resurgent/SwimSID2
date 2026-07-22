@@ -42,6 +42,23 @@ p_SPL	= SPL - __SFR_OFFSET
 p_SPH	= SPH - __SFR_OFFSET
 p_SREG	= SREG - __SFR_OFFSET
 
+; Fractional sample-rate divisor (pitch fine-tune). The 8-bit Timer0 can only
+; make the sample period an integer number of 4 MHz ticks, and no integer lands
+; on the exact PAL/NTSC pitch: OCR0A=96 is +8 cents, 97 is -10 cents. Dithering
+; OCR0A between the two neighbours so the *average* period is right nulls the
+; residual to ~0 cents (see the Timer0 init comment for the arithmetic).
+;   PAL : avg period 97.4375 = 96e6/985248  -> 96 (9/16) + 97 (7/16), inc=112
+;   NTSC: avg period 93.871  = 96e6/1022727 -> 93 (223/256) + 92 (33/256), inc=33
+#ifdef SWINSID_NTSC
+DITHER_OCR_DEF	= 93
+DITHER_OCR_ALT	= 92
+DITHER_INC	= 33
+#else
+DITHER_OCR_DEF	= 96
+DITHER_OCR_ALT	= 97
+DITHER_INC	= 112
+#endif
+
 ;
 ; bit numbers:
 ;
@@ -162,6 +179,16 @@ nexti1:
 	sts OCR1BL,r23		; Write to output compare register B
 	ldi r23,0xff
 	sts sample_written,r23 ; Tell main loop to generate new sample
+	; Fractional-divisor pitch trim: pick this sample's OCR0A (period) so the
+	; running average matches the exact PAL/NTSC clock. Bresenham on dither_acc.
+	lds r23,dither_acc
+	subi r23,-DITHER_INC		; acc += inc (mod 256); carry CLEAR iff wrapped
+	sts dither_acc,r23
+	ldi r23,DITHER_OCR_DEF
+	brcs 1f				; no wrap -> default divisor
+	ldi r23,DITHER_OCR_ALT		; wrapped -> alternate divisor
+1:
+	out p_OCR0A,r23
 	pop r23
 	reti
 
@@ -1060,6 +1087,10 @@ reset:
 	; the real machine. Default is PAL; build with -DSWINSID_NTSC for NTSC.
 	;   PAL  (default): OCR0A=96 -> 4MHz/97 = 41237 Hz -> 24* =  989690 Hz (+0.45% vs 985248)
 	;   NTSC          : OCR0A=93 -> 4MHz/94 = 42553 Hz -> 24* = 1021277 Hz (-0.14% vs 1022727)
+	; A single integer divisor still can't hit the pitch exactly (the next step,
+	; 97/94, overshoots the other way), so the per-sample IRQ dithers OCR0A
+	; between the two neighbours to make the *average* rate exact (~0 cents).
+	; This just seeds the first period; the IRQ takes over from there.
 	; Set "clear on compare match" mode, disable PWM
 	ldi r23,0x02
 	out p_TCCR0A,r23
@@ -1284,22 +1315,28 @@ decrel_rates:
 	.byte 240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 
 	; Waveform 3: Sawtooth + triangle
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 29
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  8
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 56, 93
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 33
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
-	.byte   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  9
-	.byte   0,  0,  0,  0,  0,  0,  0, 24,128,128,128,128,128,128,128,130
-	.byte 204,198,214,224,224,224,224,224,240,240,240,240,248,248,252,254
+	; Sampled from a real 6581 (reSID's wave6581__ST, (C) Dag Lem, GPL),
+	; indexed by the sawtooth phase (top 8 bits) and decimated 4096->256 by
+	; averaging each 16-sample block. The real saw+triangle output is quiet and
+	; sparse; block-averaging preserves that low level without introducing the
+	; hard staircase steps (excess treble) of point-sampling. The previous table
+	; was far too bright on saw+tri leads (e.g. Impossible Mission II ~+86%).
+	.byte   0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2
+	.byte   2,  3,  2,  2,  2,  2,  1,  3,  3,  3,  2,  3,  3,  3,  3,  2
+	.byte   4,  4,  4,  9,  4,  4,  4,  4,  2,  5,  5,  5,  3,  5,  5,  5
+	.byte   5,  3,  6,  6,  6,  5,  6,  6,  6,  6,  3,  7,  7,  7,  4,  7
+	.byte   7,  7,  7,  4,  8,  8, 10, 35,  8,  8,  8,  8,  4,  9,  9,  9
+	.byte   5,  9,  9,  9,  9,  5, 10, 10, 10,  7, 10, 10, 10, 10,  5, 11
+	.byte  11, 11,  6, 11, 11, 11, 11,  6, 12, 12, 12, 14, 12, 12, 12, 12
+	.byte   6, 13, 13, 13,  7, 13, 13, 13, 13,  7, 14, 14, 14,  9, 14, 14
+	.byte  14, 14,  7, 15, 15, 15,  8, 15, 15, 15, 15,  8, 16, 26, 65, 82
+	.byte  16, 16, 16, 16,  8, 17, 17, 17,  9, 17, 17, 17, 17,  9, 18, 18
+	.byte  18, 11, 18, 18, 18, 18,  9, 19, 19, 19, 10, 19, 19, 19, 19, 10
+	.byte  20, 20, 20, 17, 20, 20, 20, 20, 10, 21, 21, 21, 11, 21, 21, 21
+	.byte  21, 11, 22, 22, 22, 13, 22, 22, 22, 22, 11, 23, 23, 23, 12, 23
+	.byte  23, 23, 23, 12, 24, 24, 26, 43, 24, 24, 24, 24, 12, 25, 25, 25
+	.byte  13, 25, 25, 25, 25, 13, 26, 26, 26, 15, 26, 26, 26, 26, 13, 27
+	.byte  27, 27, 14, 27, 27, 27, 27, 14, 28, 28, 28, 22, 28, 28, 28, 28
 
 	; Waveform 4: Pulse
 	.byte 255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
@@ -1566,6 +1603,7 @@ filter_acc_band_h:	.skip	4
 sample_l:			.skip	1
 sample_h:			.skip	3
 sample_written:		.skip	1
+dither_acc:			.skip	1	; fractional-divisor accumulator (pitch fine-tune)
 previous_volume:	.skip	1
 volume_change_progress:	.skip   1
 out_lp_l:			.skip	1	; output low-pass state (C64 output RC/DAC rolloff)

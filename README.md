@@ -102,17 +102,23 @@ What SwimSID2 adds on top of the reconstruction:
   (~×0.44) so current/original/reference are a fair A/B by ear, plus a
   per-voice **solo** (`--voice N`) for comparing individual SID channels.
 
-- **PAL/NTSC pitch correction.** The original SwinSID advances its oscillators
-  at a flat **1.000 MHz** (it adds `24 × freq` per sample at ~41.7 kHz), but a
-  real C64 SID is clocked at **985,248 Hz (PAL)** or **1,022,727 Hz (NTSC)** — so
-  every note is ~1.5% sharp on PAL. SwimSID2 now picks the Timer0 sample-rate
-  divisor per video standard so the pitch tracks the real machine. Measured
-  against the cycle-accurate reference, the error drops from **+26 cents** to
-  **+6 cents (PAL)** / **−2 cents (NTSC)** — effectively inaudible. Build the
-  default PAL firmware with `make`, or the NTSC variant with `make NTSC=1`; the
-  emulator, CLI (`--region`) and player expose a matching PAL/NTSC selector so
-  A/B comparisons stay fair. (This deviates from the byte-exact reconstruction
-  by one constant, on purpose.)
+- **PAL/NTSC pitch correction — now auto-detected.** The original SwinSID
+  advances its oscillators at a flat **1.000 MHz** (it adds `24 × freq` per
+  sample at ~41.7 kHz), but a real C64 SID is clocked at **985,248 Hz (PAL)** or
+  **1,022,727 Hz (NTSC)** — so every note is ~1.5% sharp on PAL. SwimSID2 tunes
+  the Timer0 sample rate to the real clock; and because the 8-bit divisor can't
+  land on either target exactly (the nearest integers are **+8 / −10 cents** on
+  PAL), the per-sample interrupt now **dithers the divisor** so the *average*
+  rate is exact. Measured against the cycle-accurate reference the error drops
+  from **+26 cents to ~0 cents on both PAL and NTSC** — and the dithering also
+  spreads the firmware's aliasing images, nudging the noise floor *down*.
+  Crucially the **region is auto-detected from the SID header** (just like the
+  chip model), so an NTSC-authored tune — e.g. *Impossible Mission II* — plays at
+  NTSC pitch *and* tempo and matches the reference, instead of being forced to
+  PAL; `--pal`/`--ntsc` (or the player's **Region** selector) still override it.
+  `make` builds both the PAL and NTSC firmware variants and the right one is
+  loaded automatically. (This deviates from the byte-exact reconstruction by one
+  constant, on purpose.)
 
 - **SID register reads / `$D41B` (OSC3) support — *work in progress*.** The
   original SwinSID never answers bus reads, so games that read `$D41B` (the
@@ -143,7 +149,7 @@ second:
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Pitch (PAL/NTSC) | ✅ Fixed | +26 cents → +6 (PAL) / −2 (NTSC) cents vs the reference |
+| Pitch (PAL/NTSC) | ✅ Fixed | +26 cents → ~0 cents (PAL & NTSC) via sample-rate dithering; region auto-detected from the SID header |
 | Filter loudness | ✅ Fixed | Insertion-loss model + optional A/B level-match |
 | Overall brightness/tone | ✅ Much improved | Output DAC/RC rolloff; spectral centroid within a few % on non-filter tunes |
 | `$D41B`/OSC3 reads | ✅ Addressed (WIP) | Games reading OSC3 for RNG now get live values |

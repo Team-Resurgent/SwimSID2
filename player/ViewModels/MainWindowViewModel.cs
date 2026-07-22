@@ -17,6 +17,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RenderCommand))]
     [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
     [NotifyPropertyChangedFor(nameof(ResolvedModelText))]
+    [NotifyPropertyChangedFor(nameof(ResolvedRegionText))]
     private SidTune? _selectedTune;
 
     [ObservableProperty] private decimal _song = 1;
@@ -53,11 +54,17 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>The engine to drive.</summary>
     [ObservableProperty] private SidEngine _selectedEngine = SidEngine.Current;
 
-    /// <summary>C64 video standards; match how the firmware was built (PAL by default).</summary>
-    public Region[] Regions { get; } = { Region.Pal, Region.Ntsc };
+    /// <summary>C64 video standards: Auto (follow the SID header, default), or force PAL/NTSC.</summary>
+    public Region[] Regions { get; } = { Region.Auto, Region.Pal, Region.Ntsc };
 
-    /// <summary>The C64 clock used for both firmware timing and the reference.</summary>
-    [ObservableProperty] private Region _selectedRegion = Region.Pal;
+    /// <summary>The C64 clock used for both firmware timing and the reference; Auto follows each tune's header.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResolvedRegionText))]
+    private Region _selectedRegion = Region.Auto;
+
+    /// <summary>Live read-out of the region the engine will actually use for the selected tune.</summary>
+    public string ResolvedRegionText =>
+        SelectedTune is null ? "" : $"\u2192 {SelectedTune.ResolvedRegionText(SelectedRegion)}";
 
     /// <summary>Scale the firmware down to reSIDfp's level so current/original/reference
     /// are loudness-matched for A/B. On by default; no effect on the reference itself.</summary>

@@ -10,12 +10,14 @@ public enum FilterMode
     M8580,
 }
 
-/// <summary>C64 video standard / SID master clock. Match how the firmware was built.</summary>
+/// <summary>C64 video standard / SID master clock.</summary>
 public enum Region
 {
-    /// <summary>PAL (985248 Hz) - the firmware's default build.</summary>
+    /// <summary>Follow the SID file header's clock (the default); falls back to PAL when unspecified.</summary>
+    Auto,
+    /// <summary>PAL (985248 Hz).</summary>
     Pal,
-    /// <summary>NTSC (1022727 Hz) - requires a firmware built with make NTSC=1.</summary>
+    /// <summary>NTSC (1022727 Hz).</summary>
     Ntsc,
 }
 
@@ -31,12 +33,15 @@ public enum SidEngine
 }
 
 /// <summary>A single .sid file discovered in the tunes folder.</summary>
-public sealed record SidTune(string Name, string FullPath, int Songs = 1, int StartSong = 1, int ModelBits = 0)
+public sealed record SidTune(string Name, string FullPath, int Songs = 1, int StartSong = 1, int ModelBits = 0, int ClockBits = 0)
 {
     public override string ToString() => Name;
 
     /// <summary>SID model declared by the header: 1 = 6581, 2 = 8580, 3 = both, 0 = unspecified.</summary>
     public int ModelBits { get; init; } = ModelBits;
+
+    /// <summary>C64 clock declared by the header: 1 = PAL, 2 = NTSC, 3 = both, 0 = unspecified.</summary>
+    public int ClockBits { get; init; } = ClockBits;
 
     /// <summary>
     /// The chip model the engine will actually use for this tune under the given
@@ -55,6 +60,32 @@ public sealed record SidTune(string Name, string FullPath, int Songs = 1, int St
             _ => "6581 (auto \u00b7 tune: unspecified)",
         },
     };
+
+    /// <summary>
+    /// The concrete C64 region the engine will use for this tune - the same rule
+    /// the native engine applies. Auto follows the header (NTSC only when the
+    /// header says NTSC), otherwise the forced region wins.
+    /// </summary>
+    public Region ResolvedRegion(Region mode) => mode switch
+    {
+        Region.Pal  => Region.Pal,
+        Region.Ntsc => Region.Ntsc,
+        _           => ClockBits == 2 ? Region.Ntsc : Region.Pal,
+    };
+
+    /// <summary>Human-readable region read-out matching <see cref="ResolvedRegion"/>.</summary>
+    public string ResolvedRegionText(Region mode) => mode switch
+    {
+        Region.Pal  => "PAL (forced)",
+        Region.Ntsc => "NTSC (forced)",
+        _ => ClockBits switch
+        {
+            1 => "PAL (auto)",
+            2 => "NTSC (auto)",
+            3 => "PAL (auto \u00b7 tune: both)",
+            _ => "PAL (auto \u00b7 tune: unspecified)",
+        },
+    };
 }
 
 /// <summary>Render/play parameters passed through to swinsid.dll.</summary>
@@ -65,8 +96,8 @@ public sealed class RenderSettings
     public int Rate { get; set; } = 44100;
     public FilterMode Filter { get; set; } = FilterMode.Auto;
 
-    /// <summary>C64 clock for both the firmware timing and the reference; match the firmware build.</summary>
-    public Region Region { get; set; } = Region.Pal;
+    /// <summary>C64 clock for both the firmware timing and the reference. Auto (default) follows the SID header.</summary>
+    public Region Region { get; set; } = Region.Auto;
 
     /// <summary>Current firmware (default), the original firmware baseline, or the libsidplayfp reference.</summary>
     public SidEngine Engine { get; set; } = SidEngine.Current;
@@ -171,17 +202,18 @@ public sealed class SwinSidRunner
     /// <summary>Build a SidTune, reading the song count/default song from the PSID header.</summary>
     private static SidTune MakeTune(string path)
     {
-        var (songs, startSong, modelBits) = ReadSongInfo(path);
-        return new SidTune(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path), songs, startSong, modelBits);
+        var (songs, startSong, modelBits, clockBits) = ReadSongInfo(path);
+        return new SidTune(Path.GetFileNameWithoutExtension(path), Path.GetFullPath(path), songs, startSong, modelBits, clockBits);
     }
 
     /// <summary>
     /// Read the number of sub-songs and the default start song (both 16-bit
     /// big-endian, at offsets 0x0E and 0x10) plus the SID model (flags word at
-    /// 0x76 for v2+, bits 4-5: 1 = 6581, 2 = 8580, 3 = both) from a PSID/RSID
-    /// header. Falls back to a single song / unspecified model on any error.
+    /// 0x76 for v2+, bits 4-5: 1 = 6581, 2 = 8580, 3 = both) and clock (bits
+    /// 2-3: 1 = PAL, 2 = NTSC, 3 = both) from a PSID/RSID header. Falls back to a
+    /// single song / unspecified model+clock on any error.
     /// </summary>
-    private static (int Songs, int StartSong, int ModelBits) ReadSongInfo(string path)
+    private static (int Songs, int StartSong, int ModelBits, int ClockBits) ReadSongInfo(string path)
     {
         try
         {
@@ -189,9 +221,9 @@ public sealed class SwinSidRunner
             Span<byte> h = stackalloc byte[0x7C];
             int n = fs.Read(h);
             if (n < 0x18)
-                return (1, 1, 0);
+                return (1, 1, 0, 0);
             if (!(h[0] == (byte)'P' || h[0] == (byte)'R') || h[1] != (byte)'S' || h[2] != (byte)'I' || h[3] != (byte)'D')
-                return (1, 1, 0);
+                return (1, 1, 0, 0);
 
             int songs = (h[0x0E] << 8) | h[0x0F];
             int start = (h[0x10] << 8) | h[0x11];
@@ -200,17 +232,18 @@ public sealed class SwinSidRunner
             if (start > songs) start = songs;
 
             int version = (h[0x04] << 8) | h[0x05];
-            int modelBits = 0;
+            int modelBits = 0, clockBits = 0;
             if (version >= 2 && n >= 0x78)
             {
                 int flags = (h[0x76] << 8) | h[0x77];
                 modelBits = (flags >> 4) & 3;
+                clockBits = (flags >> 2) & 3;
             }
-            return (songs, start, modelBits);
+            return (songs, start, modelBits, clockBits);
         }
         catch
         {
-            return (1, 1, 0);
+            return (1, 1, 0, 0);
         }
     }
 
@@ -274,30 +307,34 @@ public sealed class SwinSidRunner
                 : $"Original firmware baseline missing: {elf}");
     }
 
-    private static NativeMethods.Options ToOptions(RenderSettings s) => new()
+    private static NativeMethods.Options ToOptions(RenderSettings s, Region region) => new()
     {
         Song = s.Song,
         Seconds = s.Seconds,
         Rate = (uint)s.Rate,
         Filter8580 = s.Filter switch { FilterMode.M8580 => 1, FilterMode.M6581 => 0, _ => -1 },
-        Region = s.Region == Region.Ntsc ? 1 : 0,
+        // Region is already resolved to a concrete PAL/NTSC so the ELF and the
+        // native timing agree; pass that rather than the (possibly Auto) request.
+        Region = region == Region.Ntsc ? 1 : 0,
         MatchLevel = s.MatchLevel ? 1 : 0,   // firmware-only; no effect on reference
     };
 
     public Task<int> RenderAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)
     {
-        EnsureReady(settings.Engine, settings.Region);
+        var region = tune.ResolvedRegion(settings.Region);
+        EnsureReady(settings.Engine, region);
         var wav = OutputWavPath(tune, settings.Engine, settings.OutputPath);
         var dir = Path.GetDirectoryName(wav);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
-        return RunNativeAsync(settings.Engine, settings.Region, play: false, tune.FullPath, wav, ToOptions(settings), log, ct);
+        return RunNativeAsync(settings.Engine, region, play: false, tune.FullPath, wav, ToOptions(settings, region), log, ct);
     }
 
     public Task<int> PlayAsync(SidTune tune, RenderSettings settings, Action<string>? log, CancellationToken ct)
     {
-        EnsureReady(settings.Engine, settings.Region);
-        return RunNativeAsync(settings.Engine, settings.Region, play: true, tune.FullPath, null, ToOptions(settings), log, ct);
+        var region = tune.ResolvedRegion(settings.Region);
+        EnsureReady(settings.Engine, region);
+        return RunNativeAsync(settings.Engine, region, play: true, tune.FullPath, null, ToOptions(settings, region), log, ct);
     }
 
     /// <summary>

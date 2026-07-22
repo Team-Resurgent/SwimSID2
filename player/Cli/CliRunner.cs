@@ -81,8 +81,8 @@ public static class CliRunner
         };
         var regionOption = new Option<Region>("--region", "-r")
         {
-            Description = "C64 clock: Pal (default) or Ntsc. Match how the firmware was built (make NTSC=1).",
-            DefaultValueFactory = _ => Region.Pal,
+            Description = "C64 clock: Auto (default, from the SID header), Pal, or Ntsc. Auto picks the matching firmware build.",
+            DefaultValueFactory = _ => Region.Auto,
         };
         var outOption = new Option<string?>("--out", "-o")
         {
@@ -166,7 +166,8 @@ public static class CliRunner
                 MatchLevel = !parseResult.GetValue(rawLevelOption),
                 OutputPath = outOption is null ? null : parseResult.GetValue(outOption),
             };
-            Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong}); model {tune.ResolvedModel(settings.Filter)}");
+            Console.WriteLine($"{tune.Name}: song {song} of {tune.Songs} (default {tune.StartSong}); " +
+                              $"model {tune.ResolvedModel(settings.Filter)}; region {tune.ResolvedRegionText(settings.Region)}");
 
             var engineName = EngineName(settings.Engine);
             void Log(string line) => Console.WriteLine(line);

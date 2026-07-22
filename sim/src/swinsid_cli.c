@@ -33,13 +33,44 @@ static void on_sigint(int sig) {
     swinsid_stop();
 }
 
+/*
+ * If 'elf' ends in "-pal.elf" or "-ntsc.elf", return the sibling matching the
+ * requested region ('ntsc' = 1 for NTSC, 0 for PAL) when that file exists;
+ * otherwise return 'elf' unchanged. The rewritten path is built into 'buf'.
+ * This lets a single firmware argument track the tune's (or forced) region.
+ */
+static const char *variant_for(const char *elf, int ntsc, char *buf, size_t bufsz) {
+    if (!elf) return elf;
+    const char *want  = ntsc ? "-ntsc.elf" : "-pal.elf";
+    const char *tags[2] = { "-pal.elf", "-ntsc.elf" };
+    size_t len = strlen(elf);
+    for (int k = 0; k < 2; k++) {
+        size_t tl = strlen(tags[k]);
+        if (len < tl || strcmp(elf + len - tl, tags[k]) != 0)
+            continue;
+        size_t stem = len - tl;
+        if (stem + strlen(want) + 1 > bufsz)
+            return elf;                       /* would overflow: leave as-is */
+        memcpy(buf, elf, stem);
+        strcpy(buf + stem, want);
+        if (!strcmp(buf, elf))
+            return elf;                       /* already the right variant   */
+        FILE *f = fopen(buf, "rb");
+        if (!f) return elf;                   /* sibling missing: keep given  */
+        fclose(f);
+        return buf;
+    }
+    return elf;
+}
+
 static void usage(const char *p) {
     fprintf(stderr,
         "Usage: %s <firmware.elf> <tune.sid> [out.wav] [options]   (SwinSID firmware)\n"
         "       %s --reference <tune.sid> [out.wav] [options]      (reSIDfp reference)\n"
-        "  options: [--song N] [--seconds S] [--rate R] [--6581] [--8580] [--pal] [--ntsc] [--voice N] [--match-level] [--play]\n"
+        "  options: [--song N] [--seconds S] [--rate R] [--6581] [--8580] [--auto] [--pal] [--ntsc] [--voice N] [--match-level] [--play]\n"
         "  chip model defaults to the SID header (auto); --6581 / --8580 force it.\n"
-        "  --pal (default) / --ntsc select the C64 clock; match how the firmware was built.\n"
+        "  region defaults to the SID header (auto); --pal / --ntsc force the C64 clock.\n"
+        "  in auto/forced mode a firmware named *-pal.elf / *-ntsc.elf is auto-swapped to the matching build.\n"
         "  --voice N solos a single SID channel (1-3) for A/B comparison; 0 = full mix.\n"
         "  --match-level scales the firmware down to reSIDfp's level for fair A/B loudness.\n"
         "  --play streams the whole tune until Ctrl-C; --seconds bounds render only.\n", p, p);
@@ -61,6 +92,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--rate") && i + 1 < argc)    opt.rate = (uint32_t)atoi(argv[++i]);
         else if (!strcmp(argv[i], "--6581"))                    opt.filter8580 = 0;
         else if (!strcmp(argv[i], "--8580"))                    opt.filter8580 = 1;
+        else if (!strcmp(argv[i], "--auto"))                    opt.region = -1;
         else if (!strcmp(argv[i], "--pal"))                     opt.region = 0;
         else if (!strcmp(argv[i], "--ntsc"))                    opt.region = 1;
         else if (!strcmp(argv[i], "--voice") && i + 1 < argc)   opt.voice = atoi(argv[++i]);
@@ -89,6 +121,12 @@ int main(int argc, char **argv) {
         elf_path = pos[0];
         sid_path = pos[1];
         wav_path = pos[2];
+
+        /* Pick the firmware build matching the region (auto -> detect from the
+         * tune) so a *-pal.elf / *-ntsc.elf pair follows the tune automatically. */
+        static char elfbuf[1024];
+        int ntsc = (opt.region < 0) ? swinsid_detect_region(sid_path) : opt.region;
+        elf_path = variant_for(elf_path, ntsc, elfbuf, sizeof elfbuf);
     }
 
     if (!play && !wav_path) {

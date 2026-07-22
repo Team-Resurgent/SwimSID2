@@ -92,9 +92,10 @@
                                 <TextBlock Text="Region" Opacity="0.8" />
                                 <ComboBox ItemsSource="{Binding Regions}"
                                           SelectedItem="{Binding SelectedRegion}"
-                                          HorizontalAlignment="Stretch" />
-                                <TextBlock Opacity="0.55" FontSize="12"
-                                           Text="C64 clock; match the firmware build (NTSC needs make NTSC=1)" />
+                                          HorizontalAlignment="Stretch"
+                                          ToolTip.Tip="Auto follows each tune's own SID header (PAL/NTSC)" />
+                                <TextBlock Text="{Binding ResolvedRegionText}" Opacity="0.55" FontSize="12"
+                                           ToolTip.Tip="The C64 clock the engine will actually use for the selected tune" />
                             </StackPanel>
                         </Grid>
 

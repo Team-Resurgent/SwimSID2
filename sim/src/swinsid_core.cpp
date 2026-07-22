@@ -62,11 +62,22 @@ extern "C" {
 #define C64_NTSC_FRAME  17095.0     /* cycles per 59.826 Hz frame  */
 #define MAXPLAY_INSTR   2000000     /* runaway guard for init/play */
 
-/* opt->region: 0 = PAL (default), 1 = NTSC. */
-static inline int   region_is_ntsc(const swinsid_options *o) { return o && o->region == 1; }
-static inline double region_hz(const swinsid_options *o)    { return region_is_ntsc(o) ? C64_NTSC_HZ    : C64_PAL_HZ; }
-static inline double region_frame(const swinsid_options *o) { return region_is_ntsc(o) ? C64_NTSC_FRAME : C64_PAL_FRAME; }
-static inline const char *region_name(const swinsid_options *o) { return region_is_ntsc(o) ? "NTSC" : "PAL"; }
+/* Region helpers keyed on a resolved flag (1 = NTSC, 0 = PAL). */
+static inline double region_hz_of(int ntsc)          { return ntsc ? C64_NTSC_HZ    : C64_PAL_HZ; }
+static inline double region_frame_of(int ntsc)       { return ntsc ? C64_NTSC_FRAME : C64_PAL_FRAME; }
+static inline const char *region_name_of(int ntsc)   { return ntsc ? "NTSC" : "PAL"; }
+
+/* Resolve the C64 region. opt->region: <0 = auto (follow the SID header),
+ * 0 = force PAL, 1 = force NTSC. 'clockbits' is the PSID clock field (flags
+ * bits 2-3: 1=PAL, 2=NTSC, 3=both, 0=unknown). Returns 1 for NTSC, 0 for PAL;
+ * *from_tune (optional) is set when the header pinned the region. */
+static int resolve_region(const swinsid_options *o, int clockbits, int *from_tune) {
+    if (from_tune) *from_tune = 0;
+    if (o->region == 0) return 0;   /* forced PAL  */
+    if (o->region == 1) return 1;   /* forced NTSC */
+    if (clockbits == 1 || clockbits == 2) { if (from_tune) *from_tune = 1; return clockbits == 2; }
+    return 0;                       /* both/unknown -> PAL (the classic default) */
+}
 
 /* Resolve the chip model. opt->filter8580: <0 = auto (follow the SID header),
  * 0 = force 6581, 1 = force 8580. 'flags' is the PSID header flags word (bits
@@ -467,6 +478,9 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     int model_from_tune = 0;
     int mode = resolve_model(opt, sid.flags, &model_from_tune);   /* PB0 high = 8580 */
 
+    int region_from_tune = 0;
+    int ntsc = resolve_region(opt, (sid.flags >> 2) & 3, &region_from_tune);
+
     /* --- Set up simavr with the firmware ELF. --- */
     elf_firmware_t fw;
     memset(&fw, 0, sizeof fw);
@@ -483,12 +497,15 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     g_avr->options.no_pullups = 1;   /* we drive every input pin ourselves */
 
     if (g_avr->frequency == 0) g_avr->frequency = 32000000;
-    emit_log("MCU  : %s @ %u Hz   filter mode=%s%s   region=%s",
+    emit_log("MCU  : %s @ %u Hz   filter mode=%s%s   region=%s%s",
              fw.mmcu, g_avr->frequency, mode ? "8580" : "6581",
              (opt->filter8580 < 0)
                  ? (model_from_tune ? " (auto from tune)" : " (auto; tune unspecified)")
                  : "",
-             region_name(opt));
+             region_name_of(ntsc),
+             (opt->region < 0)
+                 ? (region_from_tune ? " (auto from tune)" : " (auto; tune unspecified)")
+                 : "");
 
     for (int i = 0; i < 7; i++)
         g_pc[i] = avr_io_getirq(g_avr, AVR_IOCTL_IOPORT_GETIRQ('C'), i);
@@ -524,7 +541,7 @@ static int run_firmware(const char *elf_path, const char *sid_path,
     }
     if (play) emit_log("Playing the whole tune (firmware) live at %u Hz (stop to end)...", rate);
 
-    g_ratio             = (double)g_avr->frequency / region_hz(opt);
+    g_ratio             = (double)g_avr->frequency / region_hz_of(ntsc);
     g_cycles_per_sample = (double)g_avr->frequency / (double)rate;
     g_next_sample_avr   = (double)g_avr->cycle;
 
@@ -546,7 +563,7 @@ static int run_firmware(const char *elf_path, const char *sid_path,
 
     /* Frames start now (after init). */
     g_frame_avr_base = g_avr->cycle;
-    uint64_t avr_per_frame = (uint64_t)(region_frame(opt) * g_ratio);
+    uint64_t avr_per_frame = (uint64_t)(region_frame_of(ntsc) * g_ratio);
 
     while (!g_done && !g_stop) {
         g_cpu_at_frame = cpu_clockticks;
@@ -596,6 +613,18 @@ static int run_reference(const char *sid_path, const char *wav_path,
     tune.selectSong(opt->song > 0 ? (unsigned)opt->song : 0);  /* 0 = default */
     const SidTuneInfo *ti = tune.getInfo();
 
+    /* Resolve region the same way the firmware path does. libsidplayfp's
+     * clock_t enum values line up with the PSID clock bits (1=PAL, 2=NTSC,
+     * 3=any), but map explicitly to stay robust. */
+    int region_from_tune = 0, clockbits = 0;
+    if (ti) switch (ti->clockSpeed()) {
+        case SidTuneInfo::CLOCK_PAL:  clockbits = 1; break;
+        case SidTuneInfo::CLOCK_NTSC: clockbits = 2; break;
+        case SidTuneInfo::CLOCK_ANY:  clockbits = 3; break;
+        default:                      clockbits = 0; break;
+    }
+    int ntsc = resolve_region(opt, clockbits, &region_from_tune);
+
     /* Resolve the model the same way the firmware does, so an A/B stays fair.
      * In auto mode we follow the tune (forceSidModel off, tune's own model wins);
      * when the user forces --6581/--8580 we force it on the reference too. */
@@ -628,9 +657,10 @@ static int run_reference(const char *sid_path, const char *wav_path,
      * the reference to the same model as the firmware for a fair A/B. */
     cfg.defaultSidModel = mode ? SidConfig::MOS8580 : SidConfig::MOS6581;
     cfg.forceSidModel   = explicit_model;
-    /* Match the firmware's region so an A/B pitch comparison is fair: force the
-     * C64 clock to PAL or NTSC rather than following the tune's own header. */
-    cfg.defaultC64Model = region_is_ntsc(opt) ? SidConfig::NTSC : SidConfig::PAL;
+    /* Match the firmware's resolved region so an A/B pitch comparison is fair:
+     * force the C64 clock to the region we picked (auto follows the tune's own
+     * header, same as the firmware path) rather than libsidplayfp's own default. */
+    cfg.defaultC64Model = ntsc ? SidConfig::NTSC : SidConfig::PAL;
     cfg.forceC64Model   = true;
     if (!engine.config(cfg)) {
         emit_log("error: engine config: %s", engine.error());
@@ -664,8 +694,12 @@ static int run_reference(const char *sid_path, const char *wav_path,
         default: break;   /* unknown/any -> our default (already set) */
         }
     }
-    emit_log("Reference: libsidplayfp %s (reSIDfp, %s, %s) @ %u Hz",
-             si.version(), model, region_name(opt), rate);
+    emit_log("Reference: libsidplayfp %s (reSIDfp, %s, %s%s) @ %u Hz",
+             si.version(), model, region_name_of(ntsc),
+             (opt->region < 0)
+                 ? (region_from_tune ? " auto from tune" : " auto; tune unspecified")
+                 : "",
+             rate);
 
     if (open_output(play, wav_path, rate, seconds) != 0) return 1;
     if (play) emit_log("Playing the whole tune (libsidplayfp) live at %u Hz (stop to end)...", rate);
@@ -696,9 +730,28 @@ void swinsid_default_options(swinsid_options *opt) {
     opt->seconds    = 30.0;
     opt->rate       = 44100;
     opt->filter8580 = -1;  /* auto: follow the SID header's model */
-    opt->region     = 0;   /* PAL */
+    opt->region     = -1;  /* auto: follow the SID header's clock */
     opt->voice      = 0;   /* full mix */
     opt->match_level = 0;  /* truthful output; the player opts in for A/B */
+}
+
+int swinsid_detect_region(const char *sid_path) {
+    /* Read just the PSID/RSID header and pull the clock bits (flags word at
+     * 0x76, bits 2-3). Anything but a clear NTSC flag resolves to PAL. */
+    if (!sid_path) return 0;
+    FILE *f = fopen(sid_path, "rb");
+    if (!f) return 0;
+    unsigned char h[0x80];
+    size_t n = fread(h, 1, sizeof h, f);
+    fclose(f);
+    if (n < 0x78) return 0;
+    if (!((h[0] == 'P' || h[0] == 'R') && h[1] == 'S' && h[2] == 'I' && h[3] == 'D'))
+        return 0;
+    unsigned version = ((unsigned)h[0x04] << 8) | h[0x05];
+    if (version < 2) return 0;                         /* v1 has no flags word */
+    unsigned flags = ((unsigned)h[0x76] << 8) | h[0x77];
+    int clockbits = (flags >> 2) & 3;                  /* 1=PAL,2=NTSC,3=both */
+    return clockbits == 2 ? 1 : 0;
 }
 
 int swinsid_render(const char *elf_path, const char *sid_path,

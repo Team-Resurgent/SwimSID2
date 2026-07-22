@@ -7,8 +7,9 @@ the DLL directly, so playback runs in-process and **Stop** halts it immediately.
 Each tune can be driven through one of three engines (`--engine`):
 
 - **current** (default) - the SwinSID firmware you are working on, freshly built
-  from `src/` into `build/SwinSID88-pal.elf` / `-ntsc.elf` (the `--region`
-  selector picks which one, so its baked-in pitch matches).
+  from `src/` into `build/SwinSID88-pal.elf` / `-ntsc.elf`. The region (and so
+  which of the two builds is loaded) is auto-detected from each tune's SID
+  header, so its baked-in pitch matches; `--region Pal`/`Ntsc` forces it.
 - **original** - the frozen, unmodified SwinSID firmware baseline
   (`tools/SwinSID88.original.elf`, committed). A/B this against **current** to
   hear exactly what your firmware changes did.
@@ -94,7 +95,7 @@ swimsid render Commando -o C:\tmp\renders\      # -> C:\tmp\renders\Commando.wav
 | `--rate R`    | output sample rate (Hz) | 44100 |
 | `--6581` / `--8580` | force the SID chip model | auto (from the SID header) |
 | `--engine E` (`-e`) | engine to drive: `current`, `original`, or `reference` | current |
-| `--region R` (`-r`) | C64 clock: `Pal` or `Ntsc` (match how the firmware was built) | Pal |
+| `--region R` (`-r`) | C64 clock: `Auto`, `Pal`, or `Ntsc`; `Auto` follows the SID header and loads the matching firmware build | auto (from the SID header) |
 | `--out P` (`-o`) | render output: a `.wav` file, or a folder to receive `<tune><suffix>.wav` (render only) | `output/` |
 | `--raw-level` | keep the firmware's native (louder) output instead of level-matching it to the reference for A/B | off (matched) |
 

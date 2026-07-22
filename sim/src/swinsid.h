@@ -42,14 +42,23 @@ typedef struct {
     uint32_t rate;        /* output sample rate in Hz (e.g. 44100)        */
     int      filter8580;  /* chip model: <0 = auto (from SID header),      */
                           /* 0 = force 6581, 1 = force 8580                */
-    int      region;      /* 0 = PAL (default), 1 = NTSC                  */
+    int      region;      /* C64 clock: <0 = auto (from SID header),      */
+                          /* 0 = force PAL, 1 = force NTSC                 */
     int      voice;       /* 0 = full mix (default); 1/2/3 = solo a voice */
     int      match_level; /* 1 = scale firmware down to the reSIDfp line  */
                           /* level so A/B is loudness-matched; 0 = as-is  */
 } swinsid_options;
 
-/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, auto model, PAL). */
+/* Fill 'opt' with defaults (start song, 30 s, 44100 Hz, auto model, auto region). */
 SWINSID_API void swinsid_default_options(swinsid_options *opt);
+
+/*
+ * Detect the C64 video standard a tune is authored for from its PSID/RSID
+ * header (flags word, clock bits). Returns 1 for NTSC, 0 for PAL (also the
+ * fallback for "both"/unspecified or an unreadable file). Callers that must
+ * pick a region-specific firmware ELF up front use this before rendering.
+ */
+SWINSID_API int swinsid_detect_region(const char *sid_path);
 
 /*
  * Render 'sid_path' (using firmware 'elf_path') to a mono 16-bit WAV at
