@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SwimSid.Player.ViewModels"
+        xmlns:core="clr-namespace:SwimSid.Player.Core"
+        x:Class="SwimSid.Player.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="900" Height="620"
+        MinWidth="720" MinHeight="500"
+        Title="SwimSID2 Player">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Grid Margin="18" RowDefinitions="Auto,*,Auto">
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,14">
+            <TextBlock Text="SwimSID2" FontSize="26" FontWeight="Bold" />
+            <TextBlock Text="SID tune player and renderer" Opacity="0.6" />
+        </StackPanel>
+
+        <!-- Body -->
+        <Grid Grid.Row="1" ColumnDefinitions="270,18,*">
+
+            <!-- Tune list -->
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="Tunes" FontWeight="SemiBold" Margin="2,0,0,8" />
+                <Button DockPanel.Dock="Bottom" Content="Refresh list"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Margin="0,10,0,0" Command="{Binding RefreshCommand}" />
+                <Border CornerRadius="8" BorderThickness="1" BorderBrush="#33FFFFFF" Padding="4">
+                    <ListBox ItemsSource="{Binding Tunes}"
+                             SelectedItem="{Binding SelectedTune}"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="core:SidTune">
+                                <TextBlock Text="{Binding Name}" Padding="4,6" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </DockPanel>
+
+            <!-- Right pane: options + log -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
+
+                <!-- Options -->
+                <Border Grid.Row="0" CornerRadius="8" BorderThickness="1" BorderBrush="#33FFFFFF"
+                        Padding="16" Background="#12FFFFFF">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Options" FontWeight="SemiBold" />
+
+                        <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto,Auto">
+                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{Binding SongRangeText}" Opacity="0.8" />
+                                <NumericUpDown Value="{Binding Song}" Minimum="1" Maximum="{Binding SongMax}" Increment="1"
+                                               FormatString="0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                                <TextBlock Text="Seconds (render only)" Opacity="0.8" />
+                                <NumericUpDown Value="{Binding Seconds}" Minimum="1" Maximum="3600" Increment="5"
+                                               FormatString="0.##" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,10,0,0">
+                                <TextBlock Text="Sample rate (Hz)" Opacity="0.8" />
+                                <NumericUpDown Value="{Binding Rate}" Minimum="8000" Maximum="192000" Increment="1000"
+                                               FormatString="0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4" Margin="0,10,0,0"
+                                        VerticalAlignment="Bottom">
+                                <TextBlock Text="Filter" Opacity="0.8" />
+                                <CheckBox Content="Use 6581 (default 8580)" IsChecked="{Binding Use6581}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Spacing="4" Margin="0,12,0,0">
+                                <TextBlock Text="Engine" Opacity="0.8" />
+                                <CheckBox Content="Reference: libsidplayfp accurate C64 (compare vs firmware)"
+                                          IsChecked="{Binding UseReference}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                            <Button Content="Play" Classes="accent" MinWidth="90"
+                                    Command="{Binding PlayCommand}" />
+                            <Button Content="Render to WAV" MinWidth="120"
+                                    Command="{Binding RenderCommand}" />
+                            <Button Content="Stop" MinWidth="70"
+                                    Command="{Binding StopCommand}" IsEnabled="{Binding IsBusy}" />
+                            <ProgressBar Width="120" IsIndeterminate="True"
+                                         VerticalAlignment="Center" IsVisible="{Binding IsBusy}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding OutputFolder, StringFormat='Renders are saved to: {0}'}"
+                                   Opacity="0.55" FontSize="12" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="1" Text="Log" FontWeight="SemiBold" Margin="2,16,0,8" />
+
+                <Border Grid.Row="2" CornerRadius="8" BorderThickness="1" BorderBrush="#33FFFFFF"
+                        Background="#12000000" Padding="2">
+                    <TextBox x:Name="LogBox" Text="{Binding Log}" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="NoWrap"
+                             FontFamily="Cascadia Code,Consolas,monospace" FontSize="12"
+                             Background="Transparent" BorderThickness="0"
+                             VerticalAlignment="Stretch"
+                             VerticalContentAlignment="Top" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Margin="0,14,0,0" CornerRadius="6" Padding="12,8" Background="#18FFFFFF">
+            <TextBlock Text="{Binding Status}" />
+        </Border>
+    </Grid>
+</Window>

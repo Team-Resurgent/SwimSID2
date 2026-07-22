@@ -21,9 +21,16 @@ What SwimSID2 adds on top of the reconstruction:
 
 - The firmware sources are focused on the "Lazy Jones fix" variant and tidied
   into a clean `src/` / `build/` layout.
-- A [simavr](https://github.com/buserror/simavr)-based emulator (in [`sim/`](sim/))
-  that runs the assembled firmware against real `.sid` tunes and renders the
-  audio to a WAV file or plays it live through the speakers.
+- A [simavr](https://github.com/buserror/simavr)-based emulator engine (in
+  [`sim/`](sim/)), built as a self-contained `swinsid.dll`, that runs the
+  assembled firmware against real `.sid` tunes and renders the audio to a WAV
+  file or streams it live through the speakers.
+- A **reference player**: the same tunes played through
+  [libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) - a complete,
+  cycle-accurate C64 (6510 + CIA + VIC timing, with the reSIDfp SID), the engine
+  `sidplayfp` uses - so the firmware output can be compared against a "real
+  machine" ground truth. This is what makes timing-sensitive tunes (e.g. Delta)
+  play correctly for comparison.
 
 ## Background
 
@@ -65,7 +72,31 @@ The [`sim/`](sim/) directory contains a PC emulator (built on
 [simavr](https://github.com/buserror/simavr)) that runs this firmware against
 real `.sid` tunes and renders the audio to a WAV file or plays it live. This
 enables a fast edit -> assemble -> render -> compare loop for working on the
-firmware. See [`sim/README.md`](sim/README.md).
+firmware. The same tune can also be rendered/played through the
+[libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) reference player
+(`--reference`) to compare the firmware against a real C64.
+See [`sim/README.md`](sim/README.md).
+
+## Player app (.NET)
+
+The [`player/`](player/) directory contains a .NET front-end that P/Invokes the
+`swinsid.dll` engine. It lists the tunes in `tunes/` and can **render** them to
+`output/<tune>.wav` or **play** the whole tune live (starting instantly,
+stoppable at any time). Run it with arguments for a
+[System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/) CLI,
+or with no arguments to open an [Avalonia](https://avaloniaui.net/) GUI:
+
+```bash
+cd player
+dotnet build
+swimsid list                    # list tunes
+swimsid render Commando         # -> output/Commando.wav
+swimsid play Wizball            # play live
+swimsid render Commando --ref   # libsidplayfp reference -> output/Commando.ref.wav
+swimsid                         # no args -> GUI
+```
+
+See [`player/README.md`](player/README.md) for details.
 
 ## Credits
 
@@ -73,4 +104,7 @@ firmware. See [`sim/README.md`](sim/README.md).
 - "Lazy Jones fix" firmware - **Codekiller**
 - Firmware source reconstruction - **Daniël Mantione (dmantione)**,
   https://github.com/dmantione/swinsid
+- libsidplayfp reference player (accurate C64 + reSIDfp) - **libsidplayfp /
+  Simon White, Antti Lankila, Dag Lem, Leandro Nini**,
+  https://github.com/libsidplayfp/libsidplayfp (GPL)
 - SwimSID2 continuation and emulation tooling - **Team-Resurgent (EqUiNoX)**

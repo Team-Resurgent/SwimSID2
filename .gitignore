@@ -4,12 +4,28 @@
 *.elf
 *.hex
 
-# Emulator harness build output (the built exes in /tools/ are committed)
+# Emulator harness build output (the built DLL + exes in /tools/ are committed)
 /sim/build/
 
 # SID tunes (HVSC content) and rendered WAVs - not committed
 /tunes/
 *.wav
 
+# Rendered audio output from the player
+/output/
+
+# .NET build output (player/)
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider IDE state
+.vs/
+*.suo
+*.user
+
+# Emulator build log
+sim/build.log
+
 # simavr lives in third_party/simavr as a git submodule; its build output is
-# ignored by simavr's own .gitignore, so nothing to ignore here.
+# ignored by simavr's own .gitignore. The reference player (libsidplayfp) is an
+# MSYS2 package statically linked into the DLL, so nothing extra to ignore here.

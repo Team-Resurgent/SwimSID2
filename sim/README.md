@@ -10,8 +10,26 @@ audio output. It lets you emulate and improve the firmware (the way the
 tune.sid --> [6502 + PSID player] --> SID register writes
          --> [emulated C64 bus: PORTC/PORTD + INT0 chip-select]
          --> [simavr running the ATmega88 firmware ELF]
-         --> [PWM output OCR1AL/OCR1BL] --> out.wav  (and/or speakers)
+         --> [PWM output OCR1AL/OCR1BL] --> out.wav (render) or speakers (play)
 ```
+
+It also ships a **reference player** for A/B comparison:
+[libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) - a complete,
+cycle-accurate C64 (real 6510 + CIA + VIC timing, with the reSIDfp SID), the
+same engine `sidplayfp` uses. Unlike the firmware harness above, the reference
+plays the tune *entirely itself*, so timing-sensitive tunes (CIA-driven
+multispeed, sample players like Delta) sound correct. That makes it a "real
+machine" ground truth to judge how close the firmware gets.
+
+```
+tune.sid --> [libsidplayfp: 6510 + CIA + VIC + reSIDfp] --> out.wav / speakers
+```
+
+The engine is built as a self-contained **`swinsid.dll`** exposing a small C API
+([`src/swinsid.h`](src/swinsid.h)): `swinsid_render`, `swinsid_play` (firmware),
+`swinsid_ref_render`, `swinsid_ref_play` (libsidplayfp reference), and
+`swinsid_stop`. Both the `swinsid_sim.exe` CLI and the .NET player consume it;
+the .NET player P/Invokes the DLL directly so playback starts and stops in-process.
 
 ## 1. One-time setup (MSYS2 UCRT64)
 
@@ -26,22 +44,25 @@ tune.sid --> [6502 + PSID player] --> SID register writes
        mingw-w64-ucrt-x86_64-avr-binutils \
        mingw-w64-ucrt-x86_64-avr-gcc \
        mingw-w64-ucrt-x86_64-avr-libc \
-       mingw-w64-ucrt-x86_64-libelf
+       mingw-w64-ucrt-x86_64-libelf \
+       mingw-w64-ucrt-x86_64-libsidplayfp
    ```
 
-3. Build simavr, the one external dependency. It is a git **submodule** under
-   `third_party/simavr`, so fetch it (if you didn't already clone this repo with
-   `--recurse-submodules`) and build `libsimavr.a`:
+   `libsidplayfp` is the reference player; it is statically linked into
+   `swinsid.dll`, so the finished DLL stays self-contained.
+
+3. Fetch the simavr **submodule** and build it (skip the fetch if you cloned
+   with `--recurse-submodules`):
 
    ```bash
    cd /path/to/swinsid
 
    git submodule update --init third_party/simavr
-   ( cd third_party/simavr && make build-simavr )
+   ( cd third_party/simavr && make build-simavr )   # -> libsimavr.a
    ```
 
-   (miniaudio, used for real-time `--play`, is vendored as
-   [`src/miniaudio.h`](src/miniaudio.h), so no download is needed.)
+   miniaudio, used for real-time `--play`, is vendored as
+   [`src/miniaudio.h`](src/miniaudio.h), so no download is needed.
 
 ## 2. Build the firmware (ELF the emulator loads)
 
@@ -65,12 +86,14 @@ Firmware built (all output lands in `build/`):
 
 ```bash
 cd sim
-make            # -> ../tools/swinsid_sim.exe and ../tools/wavstat.exe
+make            # -> ../tools/swinsid.dll, swinsid_sim.exe, wavstat.exe
 ```
 
-The harness sources live in `sim/src/`, objects build into `sim/build/`, and the
-finished executables are placed in the committed `tools/` folder at the repo root
-(so you can run them without rebuilding).
+The harness sources live in `sim/src/`, objects and the import library build into
+`sim/build/`, and the finished DLL + executables are placed in the committed
+`tools/` folder at the repo root (so you can run them without rebuilding). The
+GCC/pthread/elf runtimes are statically linked, so `swinsid.dll` depends only on
+system DLLs and runs outside an MSYS2 shell.
 
 ## 4. Render / play a tune
 
@@ -78,22 +101,32 @@ Put your `.sid` files in the repo-root `tunes/` folder (git-ignored - it holds
 HVSC content). Run from the repo root:
 
 ```bash
-# Render 30 s of a tune to a WAV
+# Render 30 s of a tune to a WAV (no audio device touched)
 tools/swinsid_sim.exe build/SwinSID88.elf tunes/Commando.sid out.wav --seconds 30
 
-# Play it live through the speakers as well
-tools/swinsid_sim.exe build/SwinSID88.elf tunes/Commando.sid out.wav --play
+# Play the whole tune live through the speakers (streams in real time; Ctrl-C to stop)
+tools/swinsid_sim.exe build/SwinSID88.elf tunes/Commando.sid --play
+
+# Same tune through the libsidplayfp reference (no firmware ELF needed) for comparison
+tools/swinsid_sim.exe --reference tunes/Commando.sid ref.wav --seconds 30
+tools/swinsid_sim.exe --reference tunes/Commando.sid --play
 ```
+
+Render writes a WAV of `--seconds`; `--play` streams the **whole tune** straight
+to the default audio device until you stop it (no WAV is written, so the output
+path is optional with `--play`). With `--reference` the firmware ELF is not used,
+so the positional arguments are just `<tune.sid> [out.wav]`.
 
 Options:
 
 | Option | Meaning |
 | --- | --- |
 | `--song N`    | select sub-song N (1-based) |
-| `--seconds S` | length to render (default 10) |
+| `--seconds S` | render length in seconds (CLI default 180; ignored for `--play`) |
 | `--rate R`    | output sample rate (default 44100) |
-| `--6581` / `--8580` | select filter mode (drives PB0; default 8580) |
-| `--play`      | also play through the default audio device |
+| `--6581` / `--8580` | select filter mode (6581 vs 8580 chip model; default 8580) |
+| `--play`      | stream the whole tune live to the audio device instead of writing a WAV |
+| `--reference` (`--ref`) | drive the libsidplayfp reference player instead of the SwinSID firmware |
 
 `tools/wavstat.exe` (built by `make` in `sim/`, from `sim/src/wavstat.c`) prints
 min/max/RMS of a WAV for quick sanity checks.
@@ -107,6 +140,10 @@ The whole point is a fast edit -> assemble -> render -> compare cycle:
 2. Re-assemble: `( cd .. && make elf )`.
 3. Re-render the same tune with the old and new ELF to two WAVs.
 4. Compare by ear (`--play`) or numerically (`tools/wavstat.exe`, or diff the WAVs).
+
+Use `--reference` as a "known good" target: render the same tune through
+libsidplayfp and compare the firmware output against it to judge how close the
+firmware gets to a real C64.
 
 For example, the Lazy Jones fix lives in the conditional blocks of
 `irq_chipselect` and the ADSR gate handling inside the `gen_voice` macro (guarded
@@ -130,7 +167,29 @@ timing-sensitive behaviour (digis, the Lazy Jones timing bug) is reproduced.
 
 Audio is reconstructed from the Timer1 PWM compare registers: `OCR1AL` is the
 coarse byte (PB1) and `OCR1BL` the fine byte (PB2), combined into a 16-bit
-sample centred at `0x8000` (approximating the hardware resistor DAC).
+sample centred at `0x8000` (approximating the hardware resistor DAC) in
+`fw_emit_sample()` in [`src/swinsid_core.cpp`](src/swinsid_core.cpp). Render mode
+writes each sample to the WAV; play mode pushes it into a ring buffer that
+[`src/realtime.c`](src/realtime.c) streams to the audio device, pacing the
+(faster-than-real-time) simulation to real time.
+
+## The reference (libsidplayfp) player
+
+The reference path in `swinsid_core.cpp` does **not** use the firmware harness at
+all. It hands the `.sid` straight to [libsidplayfp](https://github.com/libsidplayfp/libsidplayfp)
+(`SidTune` + `sidplayfp` + `ReSIDfpBuilder`), which runs a complete, cycle-accurate
+C64 - real 6510 CPU, CIA timers and VIC raster - driving the reSIDfp SID, then
+pulls mono samples via `sidplayfp::play()` into the same WAV/stream output path.
+No C64 ROMs are loaded, which is fine for the PSID tunes we test.
+
+This is why the reference is trustworthy where the firmware harness is not: tunes
+whose playback depends on accurate CIA-timer/raster behaviour (Rob Hubbard's
+Delta, multispeed tunes, sample players) are timed correctly by libsidplayfp,
+whereas the firmware harness only approximates those timers.
+
+libsidplayfp (GPL-2.0-or-later) is statically linked into `swinsid.dll` (along
+with libstdc++ and libgcrypt), so the finished DLL stays self-contained. It comes
+from the MSYS2 package `mingw-w64-ucrt-x86_64-libsidplayfp`.
 
 ## Limitations
 
