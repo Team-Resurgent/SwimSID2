@@ -1315,28 +1315,34 @@ decrel_rates:
 	.byte 240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 
 	; Waveform 3: Sawtooth + triangle
-	; Sampled from a real 6581 (reSID's wave6581__ST, (C) Dag Lem, GPL),
-	; indexed by the sawtooth phase (top 8 bits) and decimated 4096->256 by
-	; averaging each 16-sample block. The real saw+triangle output is quiet and
-	; sparse; block-averaging preserves that low level without introducing the
-	; hard staircase steps (excess treble) of point-sampling. The previous table
-	; was far too bright on saw+tri leads (e.g. Impossible Mission II ~+86%).
-	.byte   0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2
-	.byte   2,  3,  2,  2,  2,  2,  1,  3,  3,  3,  2,  3,  3,  3,  3,  2
-	.byte   4,  4,  4,  9,  4,  4,  4,  4,  2,  5,  5,  5,  3,  5,  5,  5
-	.byte   5,  3,  6,  6,  6,  5,  6,  6,  6,  6,  3,  7,  7,  7,  4,  7
-	.byte   7,  7,  7,  4,  8,  8, 10, 35,  8,  8,  8,  8,  4,  9,  9,  9
-	.byte   5,  9,  9,  9,  9,  5, 10, 10, 10,  7, 10, 10, 10, 10,  5, 11
-	.byte  11, 11,  6, 11, 11, 11, 11,  6, 12, 12, 12, 14, 12, 12, 12, 12
-	.byte   6, 13, 13, 13,  7, 13, 13, 13, 13,  7, 14, 14, 14,  9, 14, 14
-	.byte  14, 14,  7, 15, 15, 15,  8, 15, 15, 15, 15,  8, 16, 26, 65, 82
-	.byte  16, 16, 16, 16,  8, 17, 17, 17,  9, 17, 17, 17, 17,  9, 18, 18
-	.byte  18, 11, 18, 18, 18, 18,  9, 19, 19, 19, 10, 19, 19, 19, 19, 10
-	.byte  20, 20, 20, 17, 20, 20, 20, 20, 10, 21, 21, 21, 11, 21, 21, 21
-	.byte  21, 11, 22, 22, 22, 13, 22, 22, 22, 22, 11, 23, 23, 23, 12, 23
-	.byte  23, 23, 23, 12, 24, 24, 26, 43, 24, 24, 24, 24, 12, 25, 25, 25
-	.byte  13, 25, 25, 25, 25, 13, 26, 26, 26, 15, 26, 26, 26, 26, 13, 27
-	.byte  27, 27, 14, 27, 27, 27, 27, 14, 28, 28, 28, 22, 28, 28, 28, 28
+	; Reconstructed from reSIDfp's actual 6581 saw+triangle *output* (sampled at
+	; 192 kHz and phase-binned to one oscillator period). On a real 6581 this
+	; combined waveform repeats (nearly) twice per cycle: its spectrum is almost
+	; entirely EVEN harmonics (h2 strongest, h1/h3/h5 ~0), which is why saw+tri
+	; leads sound bright/hollow rather than like a plain saw. The previous table
+	; was a quiet monotone ramp - i.e. a strong fundamental - so those leads
+	; played a full octave LOW versus a real chip (audible e.g. on Impossible
+	; Mission II voice 1). This table copies reSIDfp's shape faithfully (its tiny
+	; residual fundamental still anchors the notated pitch, so it does NOT jump
+	; an octave up) and is RMS-matched to the old table, so voice loudness is
+	; unchanged - only the octave/timbre is corrected. Harmonics/h2 vs reSIDfp:
+	;   table   h2=1.00 h4=0.76 h6=0.21     reSIDfp  h2=1.00 h4=0.75 h6=0.22
+	.byte 123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123
+	.byte 123,123,123,123,123,123,123,123,123,123,123,123,123,123,122,121
+	.byte 121,121,121,121,121,121,121,121,121,121,121,121,121,121,121,121
+	.byte 121,121,121,121,121,121,121,121,121,124,133,142,144,145,145,144
+	.byte 144,144,144,144,144,144,144,144,144,144,144,144,144,144,144,144
+	.byte 144,144,144,144,144,144,144,144,144,144,144,144,144,139,128,122
+	.byte 121,121,121,121,121,121,121,121,121,121,121,121,121,121,121,121
+	.byte 121,121,121,121,121,121,121,121,121,121,121,123,123,123,123,123
+	.byte 123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123
+	.byte 123,123,123,123,123,123,123,123,123,123,123,123,123,123,122,121
+	.byte 121,121,121,121,121,121,121,121,121,121,121,121,121,121,121,121
+	.byte 121,121,121,121,121,121,121,121,121,123,132,142,144,145,145,144
+	.byte 144,144,144,144,144,144,144,144,144,144,144,144,144,144,144,144
+	.byte 144,144,144,144,144,144,144,144,144,144,144,144,145,139,129,122
+	.byte 121,121,121,121,121,121,121,121,121,121,121,121,121,121,121,121
+	.byte 121,121,121,121,121,121,121,121,121,121,121,123,123,123,123,123
 
 	; Waveform 4: Pulse
 	.byte 255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
